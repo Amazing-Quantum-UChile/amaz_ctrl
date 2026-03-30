@@ -1,0 +1,21 @@
+[project]
+name = "amaz-ctrl"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Victor",email = "victor.gondret@posteo.net"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pyqt5 (>=5.15.11,<6.0.0)",
+    "numpy (>=2.4.3,<3.0.0)",
+    "qdarkstyle (>=3.2.3,<4.0.0)",
+]
+
+[tool.poetry]
+packages = [{include = "amaz_ctrl", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

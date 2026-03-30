@@ -1,0 +1,202 @@
+{
+    "laser 2ph detuning (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser 1ph detuning (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser locking transition": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "spectrum analyzer Carlos acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "spectrum analyzer Carlos freq central (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Carlos freq span (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Carlos RBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Carlos VBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Carlos sweep time (s)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Tim acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "spectrum analyzer Tim freq span (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Tim RBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Tim VBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "spectrum analyzer Tim sweep time (s)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Diego acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego timebase (ms)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Diego chA acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chA name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chA range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Diego chA save trace": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chB acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chB name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chB range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Diego chB save trace": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chC acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chC name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chC range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Diego chC save trace": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chD acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chD name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Diego chD range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Diego chD save trace": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Bastian chA acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Bastian chA name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Bastian chA range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Bastian chA save trace": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Bastian chB acquire": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Bastian chB name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "oscilloscope Bastian chB range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "oscilloscope Bastian chB save trace": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    }
+}
