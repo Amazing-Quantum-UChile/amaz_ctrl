@@ -45,9 +45,6 @@ class Parameter(object):
         start, end and  number of steps for the scan
      tab : string
         in which tab we diplay the parameter
-     short_name : string
-        what will be printed in the tab
-
     """
     _scan_start=0.
     _scan_stop = 9
@@ -117,48 +114,93 @@ class Parameter(object):
         self._tab = val
 
     def set_value(self, val):
-        if self._type == str:
-            self._value = val
-        elif self._type == float:
-            self._value = float(val)
-        elif self._type == int:
-            ## we check if the integers value is equal to the float value
-            try:
-                self._value = int(val)
-            except ValueError:
-                log.warning(f"The new value of the parameter {self.key} seems to be a float {val} while the typo of this parameter was an integer. Changing type to float.")
-                self._value = float(val)
-                self._type=float
-        elif self._type == bool:
-            if type(val) == bool:
+        try:
+            if self._type == str:
                 self._value = val
-            elif val in ["True", "true", "yes", "Yes", "si", "Si"]:
-                self._value = True
-            elif val in ["False", "false", "no", "No"]:
-                self._value = False
-            else:
-                print(
-                    "{} can not be set as {} : it is not a boolean".format(
-                        self._key, val
+            elif self._type == float:
+                self._value = float(val)
+            elif self._type == int:
+                ## we check if the integers value is equal to the float value
+                try:
+                    self._value = int(val)
+                except ValueError:
+                    log.warning(f"The new value of the parameter {self.key} seems to be a float {val} while the typo of this parameter was an integer. Changing type to float.")
+                    self._value = float(val)
+                    self._type=float
+            elif self._type == bool:
+                if type(val) == bool:
+                    self._value = val
+                elif val in ["True", "true", "yes", "Yes", "si", "Si"]:
+                    self._value = True
+                elif val in ["False", "false", "no", "No"]:
+                    self._value = False
+                else:
+                    log.error(
+                        "{} can not be set as {} : it is not a boolean".format(
+                            self._key, val
+                        )
                     )
-                )
+        except ValueError:
+            log.error(f"The value '{val}' you aim to store in parameter '{self.key}' does not match its type ({self.type}).")
 
-    def set_unit(self, val):
-        self._unit = val
 
-    def set_scan_start(self, val):
-        self._scan_start = float(val)
+    def set_scan_start(self, val:float):
+        """sets the initial value of the scan of the parameter
 
-    def set_scan_stop(self, val):
-        self._scan_stop = float(val)
+        Parameters
+        ----------
+        val : float
+            the initial value for the scan.
+        """
+        try:
+            self._scan_start = float(val)
+        except ValueError:
+            log.error(f"The start value of a scan must be a number, not '{val}'. Start value of '{self.key}' not updated.")
 
-    def set_scan_steps(self, val):
-        self._scan_steps = int(val)
+    def set_scan_stop(self, val:float):
+        """sets the initial value of the scan of the parameter
 
-    def set_short_name(self, val):
+        Parameters
+        ----------
+        val : float
+            the final value for the scan.
+        """
+        try:
+            self._scan_stop = float(val)
+        except ValueError:
+            log.error(f"The stop value of a scan must be a number, not '{val}'. Stop value of '{self.key}' not updated.")
+        
+    def set_scan_steps(self, val:int):
+        """sets the number of steps for the scan of this parameter
+
+        Parameters
+        ----------
+        val : int
+            the number of steps for the scan
+        """
+        try:
+            self._scan_steps = int(val)
+        except ValueError:
+            log.error(f"The number of steps value of a scan must be an integer, not '{val}'. Scan value of '{self.key}' not updated.")
+
+    def set_short_name(self, val:str):
+        """sets the short name of the parameter (name dispaid in the tab). 
+
+        Parameters
+        ----------
+        val : str
+            the short name of the parameter
+        """
         self._short_name = val
 
-    def set_scanned(self, val):
+    def set_scanned(self, val:bool):
+        """sets if the parameter is scanned or not.
+
+        Parameters
+        ----------
+        val : bool
+            if the parameter is scanned
+        """
         self._scanned = val
 
     def update_attributes_from_scan_parameter(self):
@@ -234,3 +276,5 @@ class Parameter(object):
                 self.set_tab(tab_name)
                 return
         return
+    
+

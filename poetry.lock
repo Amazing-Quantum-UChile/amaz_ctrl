@@ -115,6 +115,21 @@ files = [
 ]
 
 [[package]]
+name = "pyro5"
+version = "5.16"
+description = "Remote object communication library, fifth major version"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "pyro5-5.16-py3-none-any.whl", hash = "sha256:ea33cad29993fd44ce394ef45950e8dc5805ee12c4dd76541a8dd11c40694706"},
+    {file = "pyro5-5.16.tar.gz", hash = "sha256:d40418ed2acee0d9093daf5023ed0b0cb485a6b62342934adb9e801956f5738b"},
+]
+
+[package.dependencies]
+serpent = ">=1.41"
+
+[[package]]
 name = "qdarkstyle"
 version = "3.2.3"
 description = "The most complete dark/light style sheet for C++/Python and Qt applications"
@@ -152,7 +167,19 @@ packaging = "*"
 [package.extras]
 test = ["pytest (>=6,!=7.0.0,!=7.0.1)", "pytest-cov (>=3.0.0)", "pytest-qt"]
 
+[[package]]
+name = "serpent"
+version = "1.42"
+description = "Serialization based on ast.literal_eval"
+optional = false
+python-versions = ">=3.2"
+groups = ["main"]
+files = [
+    {file = "serpent-1.42-py3-none-any.whl", hash = "sha256:a02f5a4fcf3b41ee6204b36c3cf026bf0433ffe15b6a7fc8a37e0bff74d87575"},
+    {file = "serpent-1.42.tar.gz", hash = "sha256:8ea082b01f8ba07ecd74e34a9118ac4521bc4594938d912b808c89f1da425506"},
+]
+
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.8"
-content-hash = "c6a47797fb9908a1e26f551390ae06ca7c8ab89755512be9688907a6ce2308b7"
+content-hash = "91c042a58dd403c196f04e6702a238399ffbfb4c7c269e7b138f9df47d47f547"

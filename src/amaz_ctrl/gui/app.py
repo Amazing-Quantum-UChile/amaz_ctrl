@@ -40,6 +40,8 @@ from PyQt5 import QtGui
 import qdarkstyle
 import sys, os
 from PyQt5 import QtCore, QtGui, QtWidgets
+import logging
+log = logging.getLogger("AmazingGUI")
 
 class QuantumLightApp(QMainWindow):
     def __init__(self, model, main_window_type:QtWidgets.QMainWindow,
@@ -60,14 +62,14 @@ class QuantumLightApp(QMainWindow):
         icon = QIcon(path_to_icon)
         self._app.setWindowIcon(icon)
         # -. Load fontawesome
-        font_path = os.path.join(os.path.dirname(__file__),
-                                  "assets", "fonts", 
-                                  "FontAwesome7Free-Solid-900.otf")
         try:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            font_path = os.path.join(base_path, "assets", "fonts", "Font Awesome 5 Free-Solid-900.otf")
             font_id = QtGui.QFontDatabase.addApplicationFont(font_path)
             FA_FAMILY = QtGui.QFontDatabase.applicationFontFamilies(font_id)[0]
-        except:
-            pass
+        except Exception:
+            log.debug("Failed to load fontawesome")
+        
         if darkstyle: 
             self._app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 

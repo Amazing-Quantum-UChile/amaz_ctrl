@@ -14,6 +14,11 @@
         "stop": 0.0,
         "steps": 0
     },
+    "Rb cell temperature (°C)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
     "spectrum analyzer Carlos acquire": {
         "start": 0.0,
         "stop": 0.0,

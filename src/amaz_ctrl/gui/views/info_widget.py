@@ -48,7 +48,8 @@ MainWidget (QWidget, parent)
 import datetime
 import numpy as np
 from PyQt5 import QtCore, QtWidgets
-
+import logging
+log = logging.getLogger("AmazingGUI")
 
 class InfoWidget(QtWidgets.QScrollArea):
     def __init__(self, parent, model, geometry):
@@ -73,6 +74,11 @@ class InfoWidget(QtWidgets.QScrollArea):
         rows.setContentsMargins(1,5,1,1)
         self.show_refresh_time(rows)
         self.show_scanned_parameters(rows)
+        # log.debug("Here is some debugging message.")
+        # log.info("The info pannel was refreshed.")
+        # log.warning("Pay attention my dear friend.")
+        # log.error("This is an error. What the fuck???")
+        # log.critical("You just ended my world.")
 
     def show_refresh_time(self, rows):
         """add the refresh time to the row"""

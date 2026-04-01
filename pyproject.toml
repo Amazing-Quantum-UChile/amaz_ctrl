@@ -6,11 +6,12 @@ authors = [
     {name = "Victor",email = "victor.gondret@posteo.net"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 dependencies = [
     "pyqt5 (>=5.15.11,<6.0.0)",
-    "numpy (>=2.4.3,<3.0.0)",
-    "qdarkstyle (>=3.2.3,<4.0.0)",
+    "numpy (>=1.19.0,<3.0.0)",
+    "qdarkstyle (>=3.1.0,<4.0.0)",
+    "pyro5 (>=5.16,<6.0)",
 ]
 
 [tool.poetry]
