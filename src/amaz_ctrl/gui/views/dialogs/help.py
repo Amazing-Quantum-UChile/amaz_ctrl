@@ -40,7 +40,7 @@ class HelpDialog(QtWidgets.QDialog):
 
     def _initialize_ui(self):
         self.setWindowTitle("Help on the Amazing Controller GUI")
-        self.setMinimumSize(1400, 600)
+        self.setMinimumSize(600, 450)
     
 
         v_layout = QtWidgets.QVBoxLayout(self) 

@@ -33,7 +33,7 @@ import threading
 
 @Pyro5.api.expose
 class PID_server(AmazingServer):
-    kp = 1
+    kp = .5
     ki = 0
     kd = 0
     input = 0
@@ -47,7 +47,7 @@ class PID_server(AmazingServer):
     def __init__(
         self,
         setpoint=0,
-        pid_parameters={"p": 1, "i": 0, "d": 0},
+        pid_parameters={"p": .5, "i": 0, "d": 0},
         output_limits=(-np.inf, np.inf),
         sampling_period = 1., # in seconds
         history_size=50,
@@ -66,14 +66,15 @@ class PID_server(AmazingServer):
         sampling_period : int, optional
             The time interval in seconds between compute steps, by default 1
 
-        Other kwargs are given to the AmazingServer mother class.
+        Other keywords argument (kwargs) are given to the AmazingServer mother class.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.set_pid_parameters(**pid_parameters)
         self._output_limits = output_limits
         self._sampling_period = sampling_period
         self.set_setpoint(setpoint)
         self.input_history = deque(maxlen=history_size)
+        self.log.info("Initialisation done.")
         self.connect()
 
     
@@ -124,7 +125,7 @@ class PID_server(AmazingServer):
     def _pid_loop(self):
         """implements the pid loop"""
         while self._is_running:
-            self.input = self.get_input()
+            self.input = self.measure_input()
             self.input_history.append(self.input)
             output = self.compute_output()
             output = self.check_output(output)
@@ -154,18 +155,23 @@ class PID_server(AmazingServer):
         pass
 
     @abstractmethod
-    def get_input(self) -> float:
+    def measure_input(self) -> float:
         """returns the value that we aim to stabilize."""
         return 0
 
 
     ###################################################################
-    ################# PUBLIC METHODS ##################
+    ####---------- PUBLIC METHODS EXPOSED TO PYRO SERVER ----------####
+    #### these methods can be called by the server because of the  ####
+    #### property @Pyro5.api.expose on top of them.                ####
     ###################################################################
 
+
+    @Pyro5.api.expose
     def set_setpoint(self, value):
         self.setpoint = value
 
+    @Pyro5.api.expose
     def start(self):
         """start the PID loop via thread (so that we can stop it)."""
         if not self._is_running: 
@@ -175,7 +181,8 @@ class PID_server(AmazingServer):
             self._thread = threading.Thread(target=self._pid_loop, daemon=True)
             self._thread.start()
             self.log.info("PID thread started.")
-
+    
+    @Pyro5.api.expose
     def stop(self):
         """stop the PID loop started with thread."""
         self._is_running = False
@@ -183,13 +190,15 @@ class PID_server(AmazingServer):
             self._thread.join()
         self.log.info("PID thread stopped.")
 
-
+    @Pyro5.api.expose
     def get_value(self):
         return self.input
     
+    @Pyro5.api.expose
     def get_input_history(self):
         return list(self.input_history)
     
+    @Pyro5.api.expose
     def clear_history(self):
         self.input_history.clear()
     

@@ -94,7 +94,7 @@ class AboutDialog(QtWidgets.QDialog):
         color = "#DFD6F1"
         html_content=f"""
         <div style="color:{color};">
-        <span style="font-family: 'Font Awesome 7 Free'; font-weight: 900; font-size: 50px; color: {color};">
+        <span style="font-family: 'Font Awesome 5 Free'; font-weight: 900; font-size: 50px; color: {color};">
                 
                     &#xf10d;
                 </span>
@@ -102,7 +102,7 @@ class AboutDialog(QtWidgets.QDialog):
                 <p>{self.txt}</p>
             </div>
              <div style="text-align: right;">
-                  <span style="font-family: 'Font Awesome 7 Free'; font-weight: 900; font-size: 50px; color: {color};">
+                  <span style="font-family: 'Font Awesome 5 Free'; font-weight: 900; font-size: 50px; color: {color};">
                     &#xf10e;
                 </span>
          </div>

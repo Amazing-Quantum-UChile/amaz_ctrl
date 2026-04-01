@@ -22,13 +22,13 @@
 """
 Content of amaz_server.py
 
-Please document your code ;-).
-
+This code implements 
 """
 
 import logging
 from abc import ABC, abstractmethod
 import Pyro5.api
+from collections import deque
 
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
@@ -36,10 +36,11 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
         self.logger_name = logger_name
         self._max_log = max_log
         self._log_level = log_level
+        self.set_up_logs()
 
     def set_up_logs(self):
         """connects the class to the logger to sotre the log message. These message can then be queried by the client."""
-        self._log_buffer = collections.deque(maxlen=self._max_log)
+        self._log_buffer = deque(maxlen=self._max_log)
         self.log = logging.getLogger(self.logger_name)
         self.log.setLevel(self._log_level)
 
@@ -66,9 +67,21 @@ class InternalBufferHandler(logging.Handler):
         super().__init__()
         self.server = server_instance
 
-    def emit(self, record):
+    def emit(self, record:logging.LogRecord)-> None:
+        """when an information is logged, send the information into the internal buffer."""
         msg = self.format(record)
-        self.server._internal_log(msg)
+        self.server._internal_log(msg, record.levelname)
 
 
 
+
+if __name__ == "__main__":
+    ## -. The Daemon is a background process that listens for incoming network requests on a given ip/port, here 9091 (otherwise Pyro5 would just pick a random one). 
+    # Currently we set IP to "localhost" for single-machine testing.
+    # To access this via VPN later, replace with the host by IP address or "0.0.0.0" (but this is dangerous, be carreful not to open too much your computer).
+    daemon = Pyro5.api.Daemon(host="localhost", port=9092)
+    ## Register the Pyro5 using a specific name so that it is predictable.
+    ## here: PYRO:dummy.pid@localhost:9091
+    uri = daemon.register(AmazingServer, "amaz.server")
+    print(f"The Amazing Server Mother class is on Port 9092\nURI: {uri}")
+    daemon.requestLoop()
