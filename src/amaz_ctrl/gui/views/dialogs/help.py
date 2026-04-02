@@ -40,18 +40,28 @@ class HelpDialog(QtWidgets.QDialog):
 
     def _initialize_ui(self):
         self.setWindowTitle("Help on the Amazing Controller GUI")
-        self.setMinimumSize(600, 450)
-    
-
         v_layout = QtWidgets.QVBoxLayout(self) 
-
-        label_gif = QtWidgets.QLabel()
-        label_gif.setAlignment(QtCore.Qt.AlignCenter) 
-        self.movie = QtGui.QMovie(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                    "img",
-                                    "travolta.gif"))
-        label_gif.setMovie(self.movie)
-        self.movie.start()
-        v_layout.addWidget(label_gif, alignment=QtCore.Qt.AlignCenter)
-
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            md_path = os.path.join(current_dir, "..", "..","..", "..", "..",  "docs", "gui_how_to.md")
+            with open(md_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                self.text_display = QtWidgets.QTextBrowser()
+                v_layout.addWidget(self.text_display)
+                self.text_display.setMarkdown(content)
+                self.resize(700, 450)
+        except Exception as e:
+            print(e)
+            try:
+                self.resize(600, 450)
+                label_gif = QtWidgets.QLabel()
+                label_gif.setAlignment(QtCore.Qt.AlignCenter) 
+                self.movie = QtGui.QMovie(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            "img",
+                                            "travolta.gif"))
+                label_gif.setMovie(self.movie)
+                self.movie.start()
+                v_layout.addWidget(label_gif, alignment=QtCore.Qt.AlignCenter)
+            except:
+                pass
         self.setLayout(v_layout)

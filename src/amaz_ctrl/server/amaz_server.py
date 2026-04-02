@@ -57,6 +57,14 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
         logs = list(self._log_buffer)
         self._log_buffer.clear()
         return logs
+    
+    @Pyro5.api.expose
+    def set_log_level(self, lvl):
+        try:
+            self.log.setLevel(lvl)
+            self._lo = lvl
+        except ValueError:
+            self.log.error(f"Failed to update the log level because '{lvl}' is not a valid logging level.")
 
     def _internal_log(self, msg, lvl):
         self._log_buffer.append({"level": lvl, "message": msg})
