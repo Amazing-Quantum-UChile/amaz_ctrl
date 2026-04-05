@@ -2,6 +2,10 @@
 
 # Amazing Graphical User Interface. How to?
 
+### 🐫 How to add a new parameter?
+This is super simple: quit the GUI application, open in a text editor the `exp_param.json` file (at the root of the module) and add your parameter. Make sure you did not forget a comma and reload the GUI. It should be there!
+
+
 
 ### 🐸 How does the GUI get information (logs, points)?
 
@@ -22,8 +26,6 @@ By using this "Server-Client" structure, the system becomes much more reliable:
 * Control: This setup allows the user to send commands (like "Start" or "Stop") to the servers at any time, while the servers handle the complex hardware timing in the background.
 
 
-### 🐫 How to add a new parameter?
-This is super simple: quit the GUI application, open in a text editor the `exp_param.json` file (at the root of the module) and add your parameter. Make sure you did not forget a comma and reload the GUI. It should be there!
 
 
 ### 🐨 How to add a button?
