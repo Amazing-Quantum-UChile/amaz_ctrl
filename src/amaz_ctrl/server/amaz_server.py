@@ -25,32 +25,58 @@ Content of amaz_server.py
 This code implements 
 """
 
-import logging
+import logging, colorlog, textwrap
 from abc import ABC, abstractmethod
 import Pyro5.api
 from collections import deque
 
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
+    log_formatter_console = colorlog.ColoredFormatter(
+            "%(log_color)s%(levelname)s:%(message)s%(reset)s",
+            log_colors={
+                "DEBUG": "cyan",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "red",
+            },
+            secondary_log_colors={},
+            style="%",
+        )
     def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO"):
         self.logger_name = logger_name
         self._max_log = max_log
         self._log_level = log_level
-        self.set_up_logs()
-
-    def set_up_logs(self):
-        """connects the class to the logger to sotre the log message. These message can then be queried by the client."""
+        # self.set_up_logs()
         self._log_buffer = deque(maxlen=self._max_log)
         self.log = logging.getLogger(self.logger_name)
-        self.log.setLevel(self._log_level)
+        self.set_up_log(self.logger_name)
 
-        ## Set up the link between the log and this class.
+
+    def set_up_log(self, logger_name):
+        """connects the class to the logger to sotre the log message. These message can then be queried by the client."""
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(self._log_level)
+
+        ### ------------- CONSOLE LOGS -------------
+        ## Format logs so that they are printed in the server terminal
+        
+        ch = logging.StreamHandler()
+        ch.setFormatter(self.log_formatter_console)
+        logger.addHandler(ch)
+
+
+        ### ------------- PYRO READABLE LOGS -------------
+        ## we also configure logs so that they can be read by clients. 
+        ## To do so we add an other handler: InternalBufferHandler
         handler = InternalBufferHandler(self)
         formatter = logging.Formatter(
-            f"{self.logger_name}: %(asctime)s: %(message)s", "%H:%M:%S"
+            f"{logger_name}: %(asctime)s: %(message)s", "%H:%M:%S"
         )
         handler.setFormatter(formatter)
         self.log.addHandler(handler)
+
 
     @Pyro5.api.expose
     def get_logs(self):
@@ -81,6 +107,27 @@ class InternalBufferHandler(logging.Handler):
         self.server._internal_log(msg, record.levelname)
 
 
+
+class SimpleWrappedFormatter(colorlog.ColoredFormatter):
+    """the idea of this class is to better format text."""
+    def format(self, record):
+        raw_msg = str(record.msg)
+        wrapped_lines = []
+        for i, line in enumerate(raw_msg.splitlines()):
+            if i>0:
+                line =" " * (len(record.levelname) + 1) +line
+            wrapped = textwrap.fill(
+                line,
+                width=80,
+                subsequent_indent=" " * (len(record.levelname) + 1),
+                replace_whitespace=True,
+                drop_whitespace=True
+            )
+            wrapped_lines.append(wrapped)
+
+        record.msg = "\n".join(wrapped_lines)
+        
+        return super().format(record)
 
 
 if __name__ == "__main__":

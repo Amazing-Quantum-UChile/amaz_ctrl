@@ -19,13 +19,23 @@
         "stop": 9.0,
         "steps": 10
     },
+    "No of iterations": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "iteration duration (s)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
     "spectrum analyzer Carlos acquire": {
         "start": 0.0,
         "stop": 0.0,
         "steps": 0
     },
     "spectrum analyzer Carlos freq central (MHz)": {
-        "start": 0.0,
+        "start": 3.0,
         "stop": 9.0,
         "steps": 10
     },

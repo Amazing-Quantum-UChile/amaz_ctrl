@@ -86,16 +86,14 @@ class QuantumLightApp(QMainWindow):
 
 
 def main():
-    home = os.path.expanduser("~")
     current_dir = os.path.dirname(__file__)
     parent_dir = os.path.dirname(current_dir)
+    exp_param_dir = os.path.join(parent_dir, "scripts")
     ## we must provide to the model the directory of the exp_param.json file
-    model = mainmodel.Model(parent_dir)
-
+    model = mainmodel.Model(exp_param_dir)
     appl = QuantumLightApp(model,
                             mainwindow.MainWindow,
                             mainwidget.MainWidget)
-
     appl.run()
 
 
