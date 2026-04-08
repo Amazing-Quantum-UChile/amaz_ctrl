@@ -8,7 +8,7 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,7 +25,6 @@ Content of log_widget.py
 Defines the Logging widget in which we print log from both the GUI (i.e. this program) and the server. 
 '''
 import logging, csv, os, random
-log = logging.getLogger("AmazingGUI")
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 
@@ -95,7 +94,7 @@ class LogWidget(QtWidgets.QGroupBox):
         self.handler.new_record.connect(self._append_log)
         formatter = logging.Formatter('GUI: %(asctime)s: %(message)s', '%H:%M:%S')
         self.handler.setFormatter(formatter)
-        self.log = logging.getLogger("AmazingGUI")
+        self.log = self._model.log
         self.log.addHandler(self.handler)
         
 

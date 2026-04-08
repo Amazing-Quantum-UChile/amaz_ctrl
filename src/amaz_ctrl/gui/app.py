@@ -8,7 +8,7 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -68,7 +68,7 @@ class QuantumLightApp(QMainWindow):
             font_id = QtGui.QFontDatabase.addApplicationFont(font_path)
             FA_FAMILY = QtGui.QFontDatabase.applicationFontFamilies(font_id)[0]
         except Exception:
-            log.debug("Failed to load fontawesome")
+            self._model.log.debug("Failed to load fontawesome")
         
         if darkstyle: 
             self._app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
@@ -77,6 +77,7 @@ class QuantumLightApp(QMainWindow):
         self._model._application = app
         self._main_window = main_window_type(model, main_widget_type)
         self._model.main_window = self._main_window
+        self._model.log.info("App started")
 
    
     def run(self):
@@ -90,7 +91,8 @@ def main():
     parent_dir = os.path.dirname(current_dir)
     exp_param_dir = os.path.join(parent_dir, "scripts")
     ## we must provide to the model the directory of the exp_param.json file
-    model = mainmodel.Model(exp_param_dir)
+    model = mainmodel.Model(exp_param_dir, 
+                            log_level="INFO", logger_name="AmazingGUI")
     appl = QuantumLightApp(model,
                             mainwindow.MainWindow,
                             mainwidget.MainWidget)

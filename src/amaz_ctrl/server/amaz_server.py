@@ -8,7 +8,7 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,33 +22,22 @@
 """
 Content of amaz_server.py
 
-This code implements 
+This code implements the base amazing server class:
+* store logs in a collection so that they can be requested by the client (deleted after queried)
 """
 
-import logging, colorlog, textwrap
+import logging, textwrap
 from abc import ABC, abstractmethod
 import Pyro5.api
 from collections import deque
-
+from amaz_ctrl.tools.amaz_logs import set_console_log
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
-    log_formatter_console = colorlog.ColoredFormatter(
-            "%(log_color)s%(levelname)s:%(message)s%(reset)s",
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "green",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "red",
-            },
-            secondary_log_colors={},
-            style="%",
-        )
+    
     def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO"):
         self.logger_name = logger_name
         self._max_log = max_log
         self._log_level = log_level
-        # self.set_up_logs()
         self._log_buffer = deque(maxlen=self._max_log)
         self.log = logging.getLogger(self.logger_name)
         self.set_up_log(self.logger_name)
@@ -56,17 +45,7 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
 
     def set_up_log(self, logger_name):
         """connects the class to the logger to sotre the log message. These message can then be queried by the client."""
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(self._log_level)
-
-        ### ------------- CONSOLE LOGS -------------
-        ## Format logs so that they are printed in the server terminal
-        
-        ch = logging.StreamHandler()
-        ch.setFormatter(self.log_formatter_console)
-        logger.addHandler(ch)
-
-
+        set_console_log(logger_name, log_level=self._log_level)
         ### ------------- PYRO READABLE LOGS -------------
         ## we also configure logs so that they can be read by clients. 
         ## To do so we add an other handler: InternalBufferHandler
@@ -108,26 +87,7 @@ class InternalBufferHandler(logging.Handler):
 
 
 
-class SimpleWrappedFormatter(colorlog.ColoredFormatter):
-    """the idea of this class is to better format text."""
-    def format(self, record):
-        raw_msg = str(record.msg)
-        wrapped_lines = []
-        for i, line in enumerate(raw_msg.splitlines()):
-            if i>0:
-                line =" " * (len(record.levelname) + 1) +line
-            wrapped = textwrap.fill(
-                line,
-                width=80,
-                subsequent_indent=" " * (len(record.levelname) + 1),
-                replace_whitespace=True,
-                drop_whitespace=True
-            )
-            wrapped_lines.append(wrapped)
 
-        record.msg = "\n".join(wrapped_lines)
-        
-        return super().format(record)
 
 
 if __name__ == "__main__":

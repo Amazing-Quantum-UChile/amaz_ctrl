@@ -8,7 +8,7 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -74,12 +74,7 @@ class InfoWidget(QtWidgets.QScrollArea):
         rows.setContentsMargins(1,5,1,1)
         self.show_refresh_time(rows)
         self.show_scanned_parameters(rows)
-        # log.debug("Here is some debugging message.")
-        # log.info("The info pannel was refreshed.")
-        # log.warning("Pay attention my dear friend.")
-        # log.error("This is an error. What the fuck???")
-        # log.critical("You just ended my world.")
-
+        
     def show_refresh_time(self, rows):
         """add the refresh time to the row"""
         now = datetime.datetime.now()

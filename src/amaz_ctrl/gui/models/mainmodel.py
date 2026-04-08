@@ -8,7 +8,7 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,17 +27,16 @@ This file implement the model of the application.  It only needs a json dictiona
 '''
 
 
-from datetime import datetime
-import os, time
+import os
 
 # mport traceback
-import numpy as np
-
+import logging
 # import snoop
 from pathlib import Path
 from os.path import expanduser
 
 
+from amaz_ctrl.tools.amaz_logs import set_console_log
 from amaz_ctrl.gui.models.parameter import Parameter
 import json
 
@@ -101,8 +100,13 @@ class Model():
     _tab_name_list = ["laser", "oscilloscope", "spectrum analyzer"]
     default_tab = "Other"
     
-    def __init__(self,exp_param_directory:str ):
+    def __init__(self,exp_param_directory:str, log_level="INFO", logger_name="AmazingGUI"):
+        self.logger_name = logger_name
+        self.log = logging.getLogger(self.logger_name)
         self.exp_par_directory = exp_param_directory
+        self._log_level = log_level
+        set_console_log(self.logger_name, log_level = self._log_level)
+
         self._parameter_path =os.path.join(exp_param_directory, "exp_params.json")
         self._def_scan_path =os.path.join(os.path.dirname(__file__), ".cached_scan_params.json")
         self._scan_path = os.path.join(exp_param_directory, "scanned_params.json")
@@ -110,6 +114,8 @@ class Model():
 
         self._delimiter = " | "
         self._generate_and_load()
+        
+        
 
     @property
     def keys(self):
@@ -149,7 +155,8 @@ class Model():
             parameter = Parameter(
                 key = key,
                 value = value,
-                scan_dict = self._default_scan_dic
+                scan_dict = self._default_scan_dic,
+                log = self.log
             )
             ## generate the tab and the short name for each parameter 
             parameter.set_tab_and_name(self._tab_name_list)

@@ -2,7 +2,7 @@
 # -*- mode:Python; coding: utf-8 -*-
 
 # ---------------------------------------------------------------------------
-# Created on the Sat Apr 04 2026 by Victor
+# Created on the Tue Apr 07 2026 by Victor
 # Copyright (c) 2026 - AmazingQuantum@UChile
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,27 +20,19 @@
 # ---------------------------------------------------------------------------
 
 '''
-Content of simple_script.py
+Content of misc.py
 
 Please document your code ;-).
 
 '''
 
 
-import threading
-
-class Script:
-    pomme = 100000
-    e=1
-    stop_event = threading.Event() 
-    
-    def set_parameters(self):
-        pass
-    def dacquire(self)->dict:
-        pass
 
 
 
+# Source - https://stackoverflow.com/a/16671271
+# Posted by Frosty Snowman, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-04-07, License - CC BY-SA 4.0
 
-
-
+def ordinal(n):
+    return str(n)+("th" if 4<=n%100<=20 else {1:"st",2:"nd",3:"rd"}.get(n%10, "th"))
