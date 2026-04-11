@@ -32,6 +32,7 @@ from amaz_ctrl.gui.views.parameters_widget import ParameterWidget
 from amaz_ctrl.gui.views.info_widget import InfoWidget
 from amaz_ctrl.gui.views.buttons_widget import ButtonsWidget
 from amaz_ctrl.gui.views.log_widget import LogWidget
+from amaz_ctrl.gui.views.plot_widget import PlotsContainer
 from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
@@ -102,16 +103,32 @@ class MainWidget(QtWidgets.QWidget):
                                     model = self._model, 
                                     geometry=(PARAMETERS_WIDTH+20, 170,  INFO_WIDTH, 190)
                                     )
+        DY = 3
         self.log_widget = LogWidget(self, model = self._model,
                                     geometry=(PARAMETERS_WIDTH+INFO_WIDTH+MARGIN*3, 
-                                              MARGIN,  600, WIDGET_HEIGHT)
+                                              MARGIN-DY,  600, WIDGET_HEIGHT+2*DY)
                                     )
-        
+        self.plots_container = PlotsContainer(
+            self, 
+            model=self._model, 
+            num_plots=3
+        )
+        self.plots_container.setGeometry(MARGIN,
+                                          WIDGET_HEIGHT + int(MARGIN*1.5), 
+                                          PARAMETERS_WIDTH + 600+INFO_WIDTH+MARGIN*2,
+                                            480)
         # We set up a timer that refresh logs and data every  300 ms
         self.log_timer = QtCore.QTimer(self) 
         self.log_timer.timeout.connect(self.update_logs_data)
         self.log_timer.start(300)
 
+        self.plot_timer = QtCore.QTimer(self) 
+        self.plot_timer.timeout.connect(self.update_plot_data)
+        self.plot_timer.start(5000)
+
+    def update_plot_data(self):
+        ## get data
+        self.plots_container.update_all_plots()
 
     def save(self):
         """action when the user saves the configuration"""

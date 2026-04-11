@@ -156,7 +156,6 @@ class ScriptServer(AmazingServer):
             self.log.error(msg)
             raise ExperimentIsRunning(msg)
         self.log.info(f"Running  {self._loaded_file} which was lastly modified at {self._script_last_modified}.")
-        self.script.main()
         self._thread_running = threading.Thread(target=self.script.main)
         self._thread_running.start()
 

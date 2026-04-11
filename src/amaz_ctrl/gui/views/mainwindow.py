@@ -36,7 +36,7 @@ from amaz_ctrl.gui.views.dialogs.about import AboutDialog
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    geometry = (3, 1500, 1700, 420)
+    geometry = (3, 3, 1550, 900)
     title= "Quantum Light Controller"
     def __init__(self, model, main_widget_type):
         super().__init__()
