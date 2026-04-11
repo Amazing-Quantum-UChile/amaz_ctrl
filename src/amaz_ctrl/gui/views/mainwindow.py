@@ -47,10 +47,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actions = {}
         self._initialize_ui()
 
-        # This magic timer is used to handel SIGINT cleanly. See
-        # below.
-
-        # self._model.start_threads()
 
     def _initialize_ui(self):
         self._setup_main_widget()

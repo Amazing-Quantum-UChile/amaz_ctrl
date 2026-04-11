@@ -22,11 +22,12 @@
 '''
 Content of plot_widget.py
 
-Please document your code ;-).
-
+Implements the following classes:
+    * PlotsContainer: a QGroupBox in which we put different  PlotUnit
+    * PlotUnit: a QWidget with a vertical layout in which we store a pyqtgraph.PlotWidget and 3 QComboBox
 '''
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QComboBox, QGridLayout,QFrame
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QComboBox, QGridLayout
 import pyqtgraph as pg
 import pandas as pd
 import numpy as np
@@ -35,14 +36,6 @@ class PlotsContainer(QGroupBox):
     def __init__(self, parent, model, num_plots=3):
         super().__init__("Plots",parent)
         self._model = model
-        # self.setFrameShape(QFrame.Shape.StyledPanel)
-        # self.setFrameShadow(QFrame.Shadow.Sunken)
-        # self.setStyleSheet("""
-        #     PlotsContainer {
-        #         border: 1px solid ;
-        #         border-radius: 4px;
-        #     }
-        # """)
         self.log = self._model.log
         x = np.linspace(0, 5, 50)
         df_list = []
@@ -111,7 +104,7 @@ class PlotUnit(QWidget):
         for i, x in enumerate(self.control_variables):
             lab= QLabel(f"{x}:")
             combo=QComboBox()
-            combo.currentIndexChanged.connect(self.refresh_plot)
+            combo.currentIndexChanged.connect(self._callback_on_UI_changed)
             self.control_layout[x]={
                 "label":lab,
                 "combo":combo
@@ -158,7 +151,10 @@ class PlotUnit(QWidget):
             if previous_column in data_cols:
                 combo.setCurrentText(previous_column)
         self._pause_refresh = False
-        
+    
+    def _callback_on_UI_changed(self):
+        self.plot_widget.enableAutoRange(axis='xy', enable=True)
+        self.refresh_plot
 
     def refresh_plot(self):
         """Méthode appelée par le timer de l'application principale."""
@@ -187,7 +183,7 @@ class PlotUnit(QWidget):
             y_vals = df[col_y].values
             # Mise à jour de la courbe
             self.plot_widget.clear()
-            curve = self.plot_widget.plot(pen=pg.mkPen("y", ),
+            curve = self.plot_widget.plot(pen=pg.mkPen("y"),
                                           symbol='o', 
                                           symbolSize=self._size_marker,
                                           symbolBrush=('y')) 
