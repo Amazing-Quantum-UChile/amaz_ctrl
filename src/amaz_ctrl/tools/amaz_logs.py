@@ -45,6 +45,9 @@ def set_console_log(logger_name, log_level="INFO"):
     """setups the log printed in the console for the server."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level)
+    ## If the log is already added, we do nothing
+    if any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        return
     ch = logging.StreamHandler()
     ch.setFormatter(log_formatter_console)
     logger.addHandler(ch)

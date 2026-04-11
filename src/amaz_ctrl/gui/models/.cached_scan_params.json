@@ -19,7 +19,7 @@
         "stop": 9.0,
         "steps": 10
     },
-    "No of iterations": {
+    "No of realizations": {
         "start": 0.0,
         "stop": 9.0,
         "steps": 10

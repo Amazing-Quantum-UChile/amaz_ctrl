@@ -56,7 +56,7 @@ def test_default_exp_params():
     script = amaz_script_instance()
     for key in script._default_exp_params.keys():
         assert key in script.exp_params
-    assert type(script.exp_params["Experiment No of realizations"])==int
+    assert type(script.exp_params["No of realizations"])==int
 
 def test_prepare_exp_error():
     script = amaz_script_instance()

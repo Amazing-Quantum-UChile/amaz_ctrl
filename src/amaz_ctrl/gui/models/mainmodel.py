@@ -38,6 +38,7 @@ from os.path import expanduser
 
 from amaz_ctrl.tools.amaz_logs import set_console_log
 from amaz_ctrl.gui.models.parameter import Parameter
+from amaz_ctrl.gui.models.server_connector import LogServerConnector, DataServerConnector, ScriptServerConnector
 import json
 
 
@@ -100,22 +101,49 @@ class Model():
     _tab_name_list = ["laser", "oscilloscope", "spectrum analyzer"]
     default_tab = "Other"
     
-    def __init__(self,exp_param_directory:str, log_level="INFO", logger_name="AmazingGUI"):
+    def __init__(self,exp_param_directory:str, 
+                 script_server_address = "PYRO:script.server@localhost:9090",
+                 data_server_addresses = ["PYRO:script.server@localhost:9090"],
+                 log_server_addresses=["PYRO:script.server@localhost:9090"],
+                 log_level="INFO", 
+                 logger_name="AmazingGUI"):
+        """_summary_
+
+        Parameters
+        ----------
+        exp_param_directory : str
+            _description_
+        script_server_address : str, optional
+            _description_, by default "PYRO:script.server@localhost:9090"
+        data_server_addresses : list, optional
+            _description_, by default ["PYRO:script.server@localhost:9090"]
+        log_server_addresses : list, optional
+            _description_, by default ["PYRO:script.server@localhost:9090"]
+        log_level : str, optional
+            _description_, by default "INFO"
+        logger_name : str, optional
+            _description_, by default "AmazingGUI"
+        """
+        
+        ##-. Set up log properties
         self.logger_name = logger_name
         self.log = logging.getLogger(self.logger_name)
         self.exp_par_directory = exp_param_directory
         self._log_level = log_level
         set_console_log(self.logger_name, log_level = self._log_level)
 
+        ##-. Set up parameters properties
         self._parameter_path =os.path.join(exp_param_directory, "exp_params.json")
         self._def_scan_path =os.path.join(os.path.dirname(__file__), ".cached_scan_params.json")
         self._scan_path = os.path.join(exp_param_directory, "scanned_params.json")
 
-
         self._delimiter = " | "
         self._generate_and_load()
-        
-        
+
+        ##-. Set up the connection to Pyro servers
+        self.server_logs_dict ={uri:LogServerConnector(uri, log = self.log) for uri in log_server_addresses}
+        self.server_data_dict ={uri:DataServerConnector(uri,log = self.log) for uri in data_server_addresses}
+        self.server_script_connector = ScriptServerConnector(script_server_address, log = self.log)
 
     @property
     def keys(self):
@@ -264,3 +292,9 @@ class Model():
         """
         self._save_exp_params()
         self._save_default_scan_dictionary()
+
+    def get_logs(self):
+        log_list =[]
+        for uri, server_log_connector in self.server_logs_dict.items():
+            log_list+=server_log_connector.get_logs()
+        return log_list

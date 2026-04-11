@@ -98,18 +98,36 @@ class LogWidget(QtWidgets.QGroupBox):
         self.log.addHandler(self.handler)
         
 
-    def _append_log(self, message, level="INFO"):
+    def _append_log(self, message:str, level="INFO"):
         """Add a message to the log."""
-        # self.console.appendPlainText(message)
+        formatted_log = self.format_log(message, level)
+        self.console.appendHtml(formatted_log)
+        self.console.moveCursor(QtGui.QTextCursor.End)
+    def _append_many_log(self, list_of_logs:list):
+        """_summary_
+
+        Parameters
+        ----------
+        dict_of_logs : list of dict
+            dictionary of 
+        """
+        if not list_of_logs:
+            return
+        formatted_log = ""
+        for log in list_of_logs:
+            formatted_log=self.format_log(log["message"],
+                                           log["level"])+"\n"
+            self.console.appendHtml(formatted_log)
+        self.console.moveCursor(QtGui.QTextCursor.End)
+
+    def format_log(self, message, level):
         ## set color
         if level in self._levelname_colors.keys():
             color = self._levelname_colors[level]
         else:
             color=self._levelname_colors["NOTSET"]
-        self.console.appendHtml(f'<span style="color:{color};">{message}</span>')
-        self.console.moveCursor(QtGui.QTextCursor.End)
-
-
+        return f'<span style="color:{color};">{message}</span>'
+        
 
 class QtLogHandler(logging.Handler, QtCore.QObject):
     """Custom handler that sends a signal to the GUI when a message is logged."""

@@ -65,10 +65,7 @@ show_logs(device.get_logs())
 time.sleep(5)
 
 # %%
-
-
-
-## change the setpoint
+# change the setpoint
 device.set_setpoint(1.)
 time.sleep(3)
 

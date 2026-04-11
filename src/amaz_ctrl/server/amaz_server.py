@@ -40,16 +40,18 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
         self._log_level = log_level
         self._log_buffer = deque(maxlen=self._max_log)
         self.log = logging.getLogger(self.logger_name)
-        self.set_up_log(self.logger_name)
+        set_console_log(self.logger_name, log_level=self._log_level)
+        self.connect_logger_to_buffer_log(self.log)
 
 
-    def set_up_log(self, logger_name):
+    def connect_logger_to_buffer_log(self, 
+                                     logger:logging.Logger):
         """connects the class to the logger to sotre the log message. These message can then be queried by the client."""
-        set_console_log(logger_name, log_level=self._log_level)
         ### ------------- PYRO READABLE LOGS -------------
         ## we also configure logs so that they can be read by clients. 
         ## To do so we add an other handler: InternalBufferHandler
         handler = InternalBufferHandler(self)
+        logger_name = logger.name
         formatter = logging.Formatter(
             f"{logger_name}: %(asctime)s: %(message)s", "%H:%M:%S"
         )

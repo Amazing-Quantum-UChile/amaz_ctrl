@@ -25,11 +25,11 @@ Content of script_server.py
 Please document your code ;-).
 
 '''
-from amaz_ctrl.tools.amaz_exception import ExperimentIsRunning, ExperimentIsPreparing, NoScriptToRun
+from amaz_ctrl.tools.amaz_exception import ExperimentIsRunning, NoScriptToRun
 from amaz_ctrl.server.amaz_server import AmazingServer
 import importlib, sys, time
 import Pyro5.api
-import traceback, logging
+import traceback, logging,threading
 
 class ScriptServer(AmazingServer):
     _script_class = "Script" #the name of the class we import
@@ -37,8 +37,6 @@ class ScriptServer(AmazingServer):
     script = None
     current_module = None
     _thread_running = None
-    _thread_setting_params = None
-    _is_setting_parameters = False 
     _are_params_set = False
     _set_parameters_timeout = 30 #timeout before we terminate the function
     def __init__(self,
@@ -51,46 +49,19 @@ class ScriptServer(AmazingServer):
             max_log=max_log,
             log_level=log_level
             )
-        self.set_up_log("SCRIPT")
+
     ###################################################################
-    ########################  Private methods  ########################
+    ##########################  Properties   ##########################
     ###################################################################
-    @property
-    def is_setting_parameters(self)->bool:
-        """returns wether the _thread_setting_params is alive or not, i.e. if we are setting parameters up."""
-        return self._thread_setting_params is not None and self._thread_setting_params.is_alive()
-    
     @property
     def is_running(self)->bool:
         """returns wether the _thread_running is alive or not, i.e. if an experiment is running."""
         return self._thread_running is not None and self._thread_running.is_alive()
-
-
-    ###################################################################
-    ####---------- PUBLIC METHODS EXPOSED TO PYRO SERVER ----------####
-    #### these methods can be called by the server because of the  ####
-    #### property @Pyro5.api.expose on top of them.                ####
-    ###################################################################
     
-    @Pyro5.api.expose
-    def upload_script(self, script_name):
-        """_summary_
 
-        Parameters
-        ----------
-        script_name : _type_
-            _description_
-        """
-        try:
-            self._upload_script(script_name)
-        except Exception as e:
-            msg = "ScriptNotUploaded: Look at previous logs for " \
-            "more information.".format(
-                sn=script_name,
-                dir = self._path_to_scripts.replace(".", " / "))
-            self.log.warning(msg)
-
-
+    ###################################################################
+    ########################  Private methods  ########################
+    ###################################################################
     def _upload_script(self, script_name:str):
         """upload the script script_name from the script folder and set
         it as the new script. The method rise errors when the script cannot be loaded.
@@ -118,12 +89,6 @@ class ScriptServer(AmazingServer):
             " Please stop data acquisition to upload a new script."
             self.log.error(msg)
             raise ExperimentIsRunning(msg)
-        if self._is_setting_parameters:
-            msg="ExperimentIsPreparing: The server is busy setting parameters." \
-            " A new script cannot be uploaded at this stage."
-            self.log.error(msg)
-            raise ExperimentIsPreparing(msg)
-            
         try:
             ## check if .py is in the name
             if script_name[-3:] == ".py":
@@ -135,6 +100,9 @@ class ScriptServer(AmazingServer):
                 self.current_module = importlib.import_module(complete_module_name)
             class_script = getattr(self.current_module, "Script")
             self.script = class_script()
+
+            ## Connect logs of the Script to logs of the Server
+            self.connect_logger_to_buffer_log(self.script.log)
             self.log.info(f"Script '{script_name}´ successfully uploaded.")
             return
         except ModuleNotFoundError as e:
@@ -167,14 +135,7 @@ class ScriptServer(AmazingServer):
             self.log.error(msg)
             raise
 
-    def _check_script_attributes(self):
-        pass
-    
-    @Pyro5.api.expose
-    def run(self):
-        self._run()
-
-    def _run(self):
+    def _run_script(self):
         ## 1. Checks: script is uploaded? Is already running? Has acquire method?
         if self.script is None:
             msg="No script to run. Please upload a script first."
@@ -186,61 +147,64 @@ class ScriptServer(AmazingServer):
             " Please stop data acquisition to run a new sequence."
             self.log.error(msg)
             raise ExperimentIsRunning(msg)
-        
-        method = getattr(self.script, "acquire", None)
-        if not callable(method):
-            msg="The uploaded Script does not have an acquire method. Script cannot be run."
-            self.log.error(msg)
-            raise AttributeError(msg)
+        self._thread_running = threading.Thread(target=self.script.main)
+        self._thread_running.start()
 
-        if not self._are_params_set:
-            self.set_parameters()
 
+    
+    ###################################################################
+    ####---------- PUBLIC METHODS EXPOSED TO PYRO SERVER ----------####
+    #### these methods can be called by the server because of the  ####
+    #### property @Pyro5.api.expose on top of them.                ####
+    ###################################################################
+    
+    @Pyro5.api.expose
+    @Pyro5.api.oneway
+    def upload_script(self, script_name):
+        """_summary_
+
+        Parameters
+        ----------
+        script_name : _type_
+            _description_
+        """
+        try:
+            self._upload_script(script_name)
+        except Exception as e:
+            msg = "ScriptNotUploaded: Look at previous logs for " \
+            "more information.".format(
+                sn=script_name,
+                dir = self._path_to_scripts.replace(".", " / "))
+            self.log.warning(msg)
 
     @Pyro5.api.expose
-    def set_parameters(self):
-        self._are_params_set = False
-        try:
-           self._set_parameters()
-           self._are_params_set = True
-        except Exception as e:
-            self._are_params_set = False
-    def start_sequence(self):
-        pass
+    @Pyro5.api.oneway
+    def run_script(self):
+        self._run_script()
     
-    def _set_parameters(self):
-        ## 1. Checks: script is uploaded? Is already running? Has acquire method?
-        if self.script is None:
-            msg="No script to run. Please upload a script first."
-            self.log.error(msg)
-            raise NoScriptToRun(msg)
-        
-        if self.is_running :
-            msg="ExperimentIsRunning: The server is running an experiment." \
-            " Please stop data acquisition before setting new parameters."
-            self.log.error(msg)
-            raise ExperimentIsRunning(msg)
-        
+
+    @Pyro5.api.expose
+    @Pyro5.api.oneway
+    def stop(self):
+        self.script.stop_acquisition()
         
 
 
 
     
 if __name__ == "__main__":
+    ## -. The Daemon is a background process that listens for incoming network requests on a given ip/port, here 9090 (otherwise Pyro5 would just pick a random one). 
+    # Currently we set IP to "localhost" for single-machine testing.
+    # To access this via VPN later, replace with the host by IP address or "0.0.0.0" (but this is dangerous, be carreful not to open too much your computer).
+    daemon = Pyro5.api.Daemon(host="localhost", port=9090)
+    ## Register the Pyro5 using a specific name so that it is predictable.
+    ## here: PYRO:script.server@localhost:9090
+    obj = ScriptServer(
+        logger_name="SCRIPT_SERVER",
+        max_log=100, 
+        log_level="INFO"
+    )
+    uri = daemon.register(obj, "script.server")
+    print(f"Dummy Server ready on Port 9090\nURI: {uri}")
+    daemon.requestLoop()
     
-    server = ScriptServer()
-    server._path_to_scripts = "amaz_ctrl.scripts.base"
-    server._upload_script("dummy_script.py")
-    
-    # # server._is_setting_parameters = True
-    # server.upload_script("simple_script.py")
-    # # server.run()
-    # try:
-    #     server.is_running=True
-    #     server._run()
-    # except Exception as e:
-    #     print(type(e), type(e)==ExperimentIsRunning)
-    # # print(server.script.pomme)
-    # method = getattr(obj, 'method_name', None)
-    # if callable(method):
-    #     print("Hello")

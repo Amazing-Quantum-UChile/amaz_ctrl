@@ -85,9 +85,10 @@ class ButtonsWidget(QtWidgets.QScrollArea):
         self.btn_upload.clicked.connect(self._upload_btn_pushed)
 
     def _upload_btn_pushed(self):
-        """connect the action when the upload button is pushed to the model."""
-        # self._model.btn_upload_pushed()
-        print("Upload button pushed. Please link to an action.")
+        """connect the action when the upload button is pushed to 
+        the model: we call the load_script function of the ScriptServer."""
+        script_name = self.script_name.text()
+        self._model.server_script_connector.load_script(script_name)
 
     ### --  RUN BUTTON  --
     def set_up_run_btn(self):
@@ -98,7 +99,8 @@ class ButtonsWidget(QtWidgets.QScrollArea):
 
     def _run_btn_pushed(self):
         # self._model.btn_run_pushed()
-        print("Run button pushed. Please link to an action.")
+        self._model.server_script_connector.run_script()
+        
 
     ### --  STOP BUTTON  --
     def set_up_stop_btn(self):
@@ -108,5 +110,4 @@ class ButtonsWidget(QtWidgets.QScrollArea):
         self.btn_stop.clicked.connect(self._stop_btn_pushed)
 
     def _stop_btn_pushed(self):
-        # self._model.btn_stop_pushed()
-        print("Stop button pushed. Please link to an action.")
+        self._model.server_script_connector.stop()

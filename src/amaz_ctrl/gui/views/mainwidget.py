@@ -49,6 +49,7 @@ class MainWidget(QtWidgets.QWidget):
                    "medium2":"rgb(161, 139, 218)",
                    "light":"rgb(189, 164, 223)",
                    "lighter":"rgb(223, 214, 241)"}
+    _refresh_rate = 300 #time at which the GUI refresh the log/data pannels, in ms. Each 
     def __init__(self, parent, model):
         """Main widget in which we 
         Setup the different part of the GUI.  
@@ -105,6 +106,11 @@ class MainWidget(QtWidgets.QWidget):
                                     geometry=(PARAMETERS_WIDTH+INFO_WIDTH+MARGIN*3, 
                                               MARGIN,  600, WIDGET_HEIGHT)
                                     )
+        
+        # We set up a timer that refresh logs and data every  300 ms
+        self.log_timer = QtCore.QTimer(self) 
+        self.log_timer.timeout.connect(self.update_logs_data)
+        self.log_timer.start(300)
 
 
     def save(self):
@@ -113,3 +119,13 @@ class MainWidget(QtWidgets.QWidget):
         ## in case the model did not accepted the value of the user
         self.params_widget.update_GUI_from_model()
         self.info_widget.refresh()
+    
+
+    def update_logs_data(self):
+        logs = self._model.get_logs()
+        self.log_widget._append_many_log(logs)
+        # data = self.srv.get_data()
+        
+        # On met à jour l'UI directement
+        # self.display_logs(logs)
+        # self.update_plot(data)

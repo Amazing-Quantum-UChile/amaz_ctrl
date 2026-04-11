@@ -5,7 +5,14 @@
 ### 🐫 How to add a new parameter?
 This is super simple: quit the GUI application, open in a text editor the `exp_param.json` file (at the root of the module) and add your parameter. Make sure you did not forget a comma and reload the GUI. It should be there!
 
-
+### 🦩 How to write a script
+In the `src/amaz_ctrl/scripts` folder, create a python file in which you must define a Script object which inherits the `AmazingScript` class (the latter being defined in the `scripts/base` directory). In this class you need to define the following functions:
+* `prepare_experiment` a method in which we should connect to actuators and set their parameters i.e. send to a frequency generator the frequency and amplitude for the AOMs, set the temperature of the Rb cell, set the frequency range of the spectrum analyzer, et cetera...
+* `connect_sensors` a method in which we connect to sensors before an experiment (which is the repetition of many runs). Note we do not disconnect from sensors between two runs.
+* `disconnect_sensors` a method called after the acquisition, disconnect after an experiment,
+* `acquire`, a method which must returns a dictionary with a summary of the measured quantities (i.e. the noise level at 1.5 MHz for example). This method is called N times for an experiment, where N corresponds to the "No of realizations" key of the `exp_params.json` dictionary. In this method, you could also save the raw data (i.e. the entire spectrum). To know the directory in which data should be saved, you can use the method:
+  * `get_run_prefix()` that will return you a string like "YYYY/MM/DD/SEQ/EXP/xxxx_" in which you just add to add you type of measurement and the extension (like `spectrum.csv`) to save your data.
+  * `get_raw_data_dir()` will return you a string like "YYYY/MM/DD/SEQ/EXP"
 
 ### 🐸 How does the GUI get information (logs, points)?
 
@@ -14,7 +21,7 @@ Before opening the graphical interface (the GUI), we launch several independent 
 * The PID Server: Its only job is to monitor and "lock" the Rb cell temperature. It works constantly to keep the hardware stable.
 * The Sequence Server: This program handles the timing and execution of the experimental scripts.
 * Any other server that we could need in the future.
-
+ 
 #### 2. Communication
 These servers use a tool called Pyro5 (Python Remote Objects). Instead of one big, messy program, we split the experiment into parts that "talk" to each other over a network connection. Each server sits on a specific Host (the computer's address "localhost") and a Port (a dedicated communication channel e.g. 9090, 9091...).
 
