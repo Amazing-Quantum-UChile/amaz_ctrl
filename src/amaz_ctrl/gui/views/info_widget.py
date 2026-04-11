@@ -48,8 +48,6 @@ MainWidget (QWidget, parent)
 import datetime
 import numpy as np
 from PyQt5 import QtCore, QtWidgets
-import logging
-log = logging.getLogger("AmazingGUI")
 
 class InfoWidget(QtWidgets.QScrollArea):
     def __init__(self, parent, model, geometry):

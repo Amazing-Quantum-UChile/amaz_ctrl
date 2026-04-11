@@ -26,6 +26,7 @@ Defines the Logging widget in which we print log from both the GUI (i.e. this pr
 '''
 import logging, csv, os, random
 from PyQt5 import QtWidgets, QtCore, QtGui
+from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out
 
 
 class LogWidget(QtWidgets.QGroupBox):
@@ -46,7 +47,7 @@ class LogWidget(QtWidgets.QGroupBox):
         "NOTSET": "#FFFFFF",
         "DEBUG": "#8C8C8C",
         # theme
-        "INFO": "#DFD6F1",
+        "INFO": "#89D89A",
         # orange
         "WARNING": "#FFBE57",
         "WARN":  "#FFBE57",
@@ -80,29 +81,22 @@ class LogWidget(QtWidgets.QGroupBox):
         layout.setContentsMargins(5, 15, 5, 5)
         layout.addWidget(self.console)
         
-        ## 4. Connect to logger
-        self.setup_GUI_logging_bridge()
+        ## 4. Connect the logger to the console print
+        self.log = self._model.log
+        connect_logger_to_call_out(self.log, self._append_log)
         self.set_log_level(self._log_level)
 
     def set_log_level(self,lvl):
         self._log_level = lvl
         self.log.setLevel(lvl)
 
-    def setup_GUI_logging_bridge(self):
-        """Connects the AmazingGUI logger to the QWidget. The AmazingGUI logging is the one that we use in the GUI part of the amaz_ctrl program."""
-        self.handler = QtLogHandler()
-        self.handler.new_record.connect(self._append_log)
-        formatter = logging.Formatter('GUI: %(asctime)s: %(message)s', '%H:%M:%S')
-        self.handler.setFormatter(formatter)
-        self.log = self._model.log
-        self.log.addHandler(self.handler)
-        
 
     def _append_log(self, message:str, level="INFO"):
         """Add a message to the log."""
         formatted_log = self.format_log(message, level)
         self.console.appendHtml(formatted_log)
         self.console.moveCursor(QtGui.QTextCursor.End)
+        
     def _append_many_log(self, list_of_logs:list):
         """_summary_
 

@@ -30,10 +30,9 @@ import logging, textwrap
 from abc import ABC, abstractmethod
 import Pyro5.api
 from collections import deque
-from amaz_ctrl.tools.amaz_logs import set_console_log
+from amaz_ctrl.tools.amaz_logs import set_console_log, connect_logger_to_call_out
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
-    
     def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO"):
         self.logger_name = logger_name
         self._max_log = max_log
@@ -41,22 +40,7 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
         self._log_buffer = deque(maxlen=self._max_log)
         self.log = logging.getLogger(self.logger_name)
         set_console_log(self.logger_name, log_level=self._log_level)
-        self.connect_logger_to_buffer_log(self.log)
-
-
-    def connect_logger_to_buffer_log(self, 
-                                     logger:logging.Logger):
-        """connects the class to the logger to sotre the log message. These message can then be queried by the client."""
-        ### ------------- PYRO READABLE LOGS -------------
-        ## we also configure logs so that they can be read by clients. 
-        ## To do so we add an other handler: InternalBufferHandler
-        handler = InternalBufferHandler(self)
-        logger_name = logger.name
-        formatter = logging.Formatter(
-            f"{logger_name}: %(asctime)s: %(message)s", "%H:%M:%S"
-        )
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        connect_logger_to_call_out(self.log, self._internal_log)
 
 
     @Pyro5.api.expose
@@ -75,18 +59,6 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
 
     def _internal_log(self, msg, lvl):
         self._log_buffer.append({"level": lvl, "message": msg})
-
-
-class InternalBufferHandler(logging.Handler):
-    def __init__(self, server_instance):
-        super().__init__()
-        self.server = server_instance
-
-    def emit(self, record:logging.LogRecord)-> None:
-        """when an information is logged, send the information into the internal buffer."""
-        msg = self.format(record)
-        self.server._internal_log(msg, record.levelname)
-
 
 
 

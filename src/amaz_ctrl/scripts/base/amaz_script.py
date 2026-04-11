@@ -33,7 +33,6 @@ import numpy as np
 import pandas as pd
 from amaz_ctrl.tools.amaz_logs import set_console_log
 from amaz_ctrl.tools.misc import ordinal
-log = logging.getLogger("SCRIPT")
 from collections import ChainMap
 
 import inspect
@@ -93,7 +92,6 @@ class AmazingScript():
         self.load_exp_param() # update the experiment parameters
         scanned_params_dict = self.load_scanned_parameters()
         list_of_experiments = self.build_list_of_experiments(scanned_params_dict)
-
         #-. Create data directory and save current scripts
         self.create_sequence_folder()
         self.save_scripts()
@@ -235,6 +233,7 @@ class AmazingScript():
     
 
     def load_scanned_parameters(self)->dict:
+        
         """load the scanned_parameter dictionary."""
         try:
             fpath = os.path.join(self._exp_params_dir, self._scanned_param_fn)
@@ -248,10 +247,11 @@ class AmazingScript():
             self.log.error(msg)
             return  {}
 
-    def build_list_of_experiments(self,scanned_params_dict, random_list = False)->list:
+    def build_list_of_experiments(self, scanned_params_dict, random_list = False)->list:
         if not scanned_params_dict:
             return [{}]
         else:
+
             # we build a list with all dictionaries
             product_list = []
             for key, dic in scanned_params_dict.items():
@@ -517,26 +517,8 @@ class AmazingScript():
         """method called before after a sequence of experiments finished so that the user can do whatever they want at this stage."""
         pass
 
-# import Pyro5.api
-# import time
-
-# # Connexion au serveur
-# remote_lab = Pyro5.api.Proxy("PYRO:my.lab@localhost:9090")
-
-# print("--- Sending command to server ---")
-# remote_lab.run_sequence(12.5)
-
-# print("--- Checking logs from server ---")
-# # On simule un petit rafraîchissement (ce que ferait ton QTimer)
-# for _ in range(3):
-#     messages = remote_lab.get_logs()
-#     for m in messages:
-#         print(f"SERVER LOG: {m}")
-#     time.sleep(0.5)
-
-
 if __name__ == "__main__":
     script = AmazingScript(exp_params_dir='/Users/victor/amaz_ctrl/src/amaz_ctrl/scripts')
-    # script.main()
+    script.main()
 
 

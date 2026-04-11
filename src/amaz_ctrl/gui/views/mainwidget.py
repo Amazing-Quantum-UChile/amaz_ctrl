@@ -79,7 +79,7 @@ class MainWidget(QtWidgets.QWidget):
         """
         super().__init__(parent)
         self._model = model
-        # self.parent = parent #--> I do not need it : parent = mainwindow
+        # n case of parent = mainwindow
 
         self._tab_keys_list = self._model.tab_keys_list
         self._tab_names_list = self._model.tabs
@@ -98,7 +98,7 @@ class MainWidget(QtWidgets.QWidget):
                                     model = self._model, 
                                     geometry=(PARAMETERS_WIDTH+MARGIN*2, MARGIN,  INFO_WIDTH, 150)
                                     )
-        self.buttons_widget = ButtonsWidget(self,
+        self.buttons_widget = ButtonsWidget(parent=self,
                                     model = self._model, 
                                     geometry=(PARAMETERS_WIDTH+20, 170,  INFO_WIDTH, 190)
                                     )

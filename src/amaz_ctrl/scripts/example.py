@@ -11,7 +11,7 @@ class Script(AmazingScript):
                  log_level="INFO"):
         super().__init__(exp_params_dir=exp_params_dir,
                          data_root_dir = data_root_dir,
-                         log_level="INFO")
+                         log_level=log_level)
 
     def prepare_experiment(self):
         time.sleep(1)
@@ -26,7 +26,9 @@ class Script(AmazingScript):
 
     def acquire(self)->dict:
         time.sleep(1)
-        self.log.info(f"Acquired run {self.j_run}")
+        det = self._exp_params["laser 2ph detuning (MHz)"]
+        det2 = self._exp_params["laser 1ph detuning (MHz)"]
+        self.log.info(f"Acquired run {self.j_run} with delta = {det} MHz and Delta = {det2} MHz.")
         result = {"Res1":1,
                   "Res2":20}
         return result

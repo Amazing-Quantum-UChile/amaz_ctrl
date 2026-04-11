@@ -27,9 +27,10 @@ Please document your code ;-).
 '''
 from amaz_ctrl.tools.amaz_exception import ExperimentIsRunning, NoScriptToRun
 from amaz_ctrl.server.amaz_server import AmazingServer
-import importlib, sys, time
+import importlib, sys
 import Pyro5.api
-import traceback, logging,threading
+import threading, os, datetime
+from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out
 
 class ScriptServer(AmazingServer):
     _script_class = "Script" #the name of the class we import
@@ -88,7 +89,7 @@ class ScriptServer(AmazingServer):
             msg="ExperimentIsRunning: The server is running an experiment." \
             " Please stop data acquisition to upload a new script."
             self.log.error(msg)
-            raise ExperimentIsRunning(msg)
+            return
         try:
             ## check if .py is in the name
             if script_name[-3:] == ".py":
@@ -101,9 +102,16 @@ class ScriptServer(AmazingServer):
             class_script = getattr(self.current_module, "Script")
             self.script = class_script()
 
-            ## Connect logs of the Script to logs of the Server
-            self.connect_logger_to_buffer_log(self.script.log)
+            ## Connect logs of the Script to add them to the Server Log collection
+            connect_logger_to_call_out(self.script.log, self._internal_log)
             self.log.info(f"Script '{script_name}´ successfully uploaded.")
+
+
+            ## Get last modification date for user information when run is asked.
+            file_path = self.current_module.__file__
+            timestamp = os.path.getmtime(file_path)
+            self._script_last_modified = datetime.datetime.fromtimestamp(timestamp).strftime('%H:%M:%S')
+            self._loaded_file = script_name+".py"
             return
         except ModuleNotFoundError as e:
             msg = "{t}: {e}. Comment: The script '{name}' was not found. Please " \
@@ -113,7 +121,7 @@ class ScriptServer(AmazingServer):
                 name = script_name,
                 dir = self._path_to_scripts.replace(".", " / ") )
             self.log.error(msg)
-            raise 
+            return 
         except AttributeError as e:
             ## this means the script has no class Script
             if "Script" in str(e):
@@ -125,7 +133,7 @@ class ScriptServer(AmazingServer):
                 self.log.error(msg)
             else:
                 self.log.error("{}: {}".format(type(e).__name__, e))
-            raise 
+            return 
         except Exception as e:
             msg = "{t}: {e}.".format(
                 t=type(e).__name__, 
@@ -133,7 +141,7 @@ class ScriptServer(AmazingServer):
                 name = script_name,
                 dir = self._path_to_scripts.replace(".", " / "))
             self.log.error(msg)
-            raise
+            return
 
     def _run_script(self):
         ## 1. Checks: script is uploaded? Is already running? Has acquire method?
@@ -147,6 +155,8 @@ class ScriptServer(AmazingServer):
             " Please stop data acquisition to run a new sequence."
             self.log.error(msg)
             raise ExperimentIsRunning(msg)
+        self.log.info(f"Running  {self._loaded_file} which was lastly modified at {self._script_last_modified}.")
+        self.script.main()
         self._thread_running = threading.Thread(target=self.script.main)
         self._thread_running.start()
 

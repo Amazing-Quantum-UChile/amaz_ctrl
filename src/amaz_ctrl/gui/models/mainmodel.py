@@ -106,7 +106,7 @@ class Model():
                  data_server_addresses = ["PYRO:script.server@localhost:9090"],
                  log_server_addresses=["PYRO:script.server@localhost:9090"],
                  log_level="INFO", 
-                 logger_name="AmazingGUI"):
+                 logger_name="GUI"):
         """_summary_
 
         Parameters
@@ -122,7 +122,7 @@ class Model():
         log_level : str, optional
             _description_, by default "INFO"
         logger_name : str, optional
-            _description_, by default "AmazingGUI"
+            _description_, by default "GUI"
         """
         
         ##-. Set up log properties
@@ -143,7 +143,9 @@ class Model():
         ##-. Set up the connection to Pyro servers
         self.server_logs_dict ={uri:LogServerConnector(uri, log = self.log) for uri in log_server_addresses}
         self.server_data_dict ={uri:DataServerConnector(uri,log = self.log) for uri in data_server_addresses}
-        self.server_script_connector = ScriptServerConnector(script_server_address, log = self.log)
+        self.server_script_connector = ScriptServerConnector(script_server_address, 
+                                                             log = self.log, 
+                                                             dead_time=.3)
 
     @property
     def keys(self):

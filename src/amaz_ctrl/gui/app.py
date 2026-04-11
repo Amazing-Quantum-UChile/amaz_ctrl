@@ -40,8 +40,6 @@ from PyQt5 import QtGui
 import qdarkstyle
 import sys, os
 from PyQt5 import QtCore, QtGui, QtWidgets
-import logging
-log = logging.getLogger("AmazingGUI")
 
 class QuantumLightApp(QMainWindow):
     def __init__(self, model, main_window_type:QtWidgets.QMainWindow,
@@ -92,7 +90,7 @@ def main():
     exp_param_dir = os.path.join(parent_dir, "scripts")
     ## we must provide to the model the directory of the exp_param.json file
     model = mainmodel.Model(exp_param_dir, 
-                            log_level="INFO", logger_name="AmazingGUI")
+                            log_level="INFO", logger_name="GUI")
     appl = QuantumLightApp(model,
                             mainwindow.MainWindow,
                             mainwidget.MainWidget)

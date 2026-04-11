@@ -61,17 +61,15 @@ class Parameter(object):
         key:str,
         value,
         scan_dict:dict,
-        log:logging.Logger=None
+        log:logging.Logger
     ):
         self._key = key
         self._short_name = key
         self._value = value
         self._type = type(value)
         self._scan_dict = scan_dict
-        if type(log) == logging.Logger:
-            self.log = log
-        else:
-            self.log = logging.getLogger("AmazingGUI")
+        self.log = log
+       
             
         
 

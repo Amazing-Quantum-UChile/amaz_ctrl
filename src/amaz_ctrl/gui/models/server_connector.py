@@ -28,7 +28,7 @@ Please document your code ;-).
 import Pyro5.api
 import logging
 from datetime import datetime
-
+from Pyro5.errors import CommunicationError, ConnectionClosedError, TimeoutError
 class ServerConnector():
     """this class implements a buffer class to dialog with 
 
@@ -38,6 +38,8 @@ class ServerConnector():
         _description_
     """
     _last_connection_time = datetime(2025, 1, 17, 14)
+    _last_connection_try = datetime(2025, 1, 17, 14)
+    _last_connection_try_warning = datetime(2025, 1, 17, 14)
     _device = None
     _pyroTimeout = .3
 
@@ -45,10 +47,12 @@ class ServerConnector():
     def __init__(self, 
                  uri:str, 
                  log:logging.Logger,
-                 dead_time = 60
+                 dead_time = 3,
+                 warning_period = 60
                  ):
         self._uri = uri
         self.log = log
+        self.warning_period = warning_period
         self.dead_time = dead_time
         # self.instanciate_device()
 
@@ -56,20 +60,31 @@ class ServerConnector():
         """Instanciates the connection with the PYRO server. We do not do it if the last connection was tried less than a dead_time (60s by default, )
         """
         now = datetime.now()
-        if (now - self._last_connection_time).total_seconds() < self.dead_time:
+        if (now - self._last_connection_try).total_seconds() < self.dead_time:
             return
+        self._last_connection_try = now
         try:
             proxy = Pyro5.api.Proxy(self._uri)
             proxy._pyroTimeout = self._pyroTimeout
             # check if we are connected
             proxy._pyroBind() 
             self._device = proxy
-            self.log.info(f"GUI:Connection to {self._uri} as a {type(self).__name__}.")
-        except Exception as e:
-            msg=f"[{type(self).__name__}] Connection to Pyro server {self._uri} failed. Trying again in {self.dead_time} s."
-            self.log.warning(msg)
-            self._device = None
             self._last_connection_time = now
+            self.log.info(f"Connection to {self._uri} as a {type(self).__name__}.")
+            self._last_connection_try_warning = now
+        except Exception as e:
+            if (now - self._last_connection_try_warning).total_seconds() > self.warning_period:
+                delay =int( (now-self._last_connection_time).total_seconds())
+                if delay > 1e5:
+                    delay = "the day you were born"
+                else:
+                    delay = f"{delay}s"
+                msg=f"[{type(self).__name__}] Connection to Pyro server {self._uri} failed and is lost since {delay}. You can try again in {self.dead_time} s."
+                self.log.warning(msg)
+                self._device = None
+                self._last_connection_try_warning = now
+            
+            
             
     
     @property
@@ -91,6 +106,7 @@ class LogServerConnector(ServerConnector):
         except Exception as e:
             msg = f"[{type(self).__name__}] Failed to retrieve logs from server {self._uri}. Error is due to {type(e).__name__}: {e}"
             self.log.warning(msg)
+            self._device = None
             return []
 
 
@@ -124,26 +140,66 @@ class ScriptServerConnector(ServerConnector):
         if not self.is_connected: 
             self.log.error(f"[{type(self).__name__} Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
             return 
-        self._device.upload_script(script_name)
         
+        try:
+            self._device.upload_script(script_name)
+            return
+        except (CommunicationError, ConnectionClosedError, TimeoutError):
+            self.log.info(f"Connection to PYRO server {self._uri} failed. Trying to reconnect...")
+            self._device = None  
+        self.instanciate_device()
+        if not self.is_connected:
+            return
+        try:
+            self._device.upload_script(script_name)
+            return
+        except (CommunicationError, ConnectionClosedError, TimeoutError):
+            self.log.error(f"{type(self).__name__}:Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
+
         return 
+    
     def run_script(self):
         """this methods calls out the PYRO accessible method run_script of the amaz_ctrl.server.script_server.ScriptServer class"""
-        
         if not self.is_connected:
             self.instanciate_device()
-        print(self.is_connected)
         if not self.is_connected: 
-            self.log.error(f"[{type(self).__name__} Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
-            
+            self.log.error(f"{type(self).__name__}:Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
             return 
-        self._device.run_script()
+        try:
+            self._device.run_script()
+            return
+        except (CommunicationError, ConnectionClosedError, TimeoutError):
+            self.log.info(f"Connection to PYRO server {self._uri} failed. Trying to reconnect...")
+            self._device = None  
+        self.instanciate_device()
+        if not self.is_connected:
+            return
+        try:
+            self._device.run_script()
+            return
+        except (CommunicationError, ConnectionClosedError, TimeoutError):
+            self.log.error(f"{type(self).__name__}:Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
+        return 
         
     def stop(self):
         """this methods calls out the PYRO accessible method stop of the amaz_ctrl.server.script_server.ScriptServer class"""
         if not self.is_connected:
             self.instanciate_device()
         if not self.is_connected: 
-            self.log.error(f"[{type(self).__name__} Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
-            return 
-        self._device.stop()
+            self.log.error(f"[{type(self).__name__}] Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
+            return
+        try:
+            self._device.stop()
+            return
+        except (CommunicationError, ConnectionClosedError, TimeoutError):
+            self.log.info(f"Connection to PYRO server {self._uri} failed. Trying to reconnect...")
+            self._device = None  
+        self.instanciate_device()
+        if not self.is_connected:
+            return
+        try:
+            self._device.stop()
+            return
+        except (CommunicationError, ConnectionClosedError, TimeoutError):
+            self.log.error(f"{type(self).__name__}:Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
+        return  

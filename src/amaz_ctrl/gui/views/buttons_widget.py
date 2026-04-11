@@ -50,7 +50,7 @@ Methods:
 """
 
 from PyQt5 import QtCore, QtWidgets
-
+import time
 class ButtonsWidget(QtWidgets.QScrollArea):
     button_height = 35
     default_script_name = "main.py"
@@ -99,6 +99,7 @@ class ButtonsWidget(QtWidgets.QScrollArea):
 
     def _run_btn_pushed(self):
         # self._model.btn_run_pushed()
+        self.parent().parent()._save()
         self._model.server_script_connector.run_script()
         
 
