@@ -67,7 +67,6 @@ class QuantumLightApp(QMainWindow):
             FA_FAMILY = QtGui.QFontDatabase.applicationFontFamilies(font_id)[0]
         except Exception:
             self._model.log.debug("Failed to load fontawesome")
-        
         if darkstyle: 
             self._app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt6())
 

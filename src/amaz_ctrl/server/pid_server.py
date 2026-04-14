@@ -78,7 +78,7 @@ class PID_server(AmazingServer):
         self.error_history = deque(maxlen=history_size)
         self.output_history = deque(maxlen=history_size)
         self.connect()
-        self.log.info("PID ready to start. Call the start method to initiate the loop.")
+        self.log.info(f"PID {self.__name__} ready to start. Call the start method to initiate the loop.")
 
 
     

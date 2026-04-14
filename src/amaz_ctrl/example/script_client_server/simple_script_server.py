@@ -61,17 +61,17 @@ if __name__ == "__main__":
     print(server.script.pomme)
 
 
-    # ## -. The Daemon is a background process that listens for incoming network requests on a given ip/port, here 9091 (otherwise Pyro5 would just pick a random one). 
-    # # Currently we set IP to "localhost" for single-machine testing.
-    # # To access this via VPN later, replace with the host by IP address or "0.0.0.0" (but this is dangerous, be carreful not to open too much your computer).
-    # daemon = Pyro5.api.Daemon(host="localhost", port=9091)
-    # ## Register the Pyro5 using a specific name so that it is predictable.
-    # ## here: PYRO:dummy.pid@localhost:9091
-    # import numpy as np
-    # obj = ScriptServer()
-    # uri = daemon.register(obj, "dummy.pid")
-    # print(f"Dummy Server ready on Port 9091\nURI: {uri}")
-    # daemon.requestLoop()
+    ## -. The Daemon is a background process that listens for incoming network requests on a given ip/port, here 9091 (otherwise Pyro5 would just pick a random one). 
+    # Currently we set IP to "localhost" for single-machine testing.
+    # To access this via VPN later, replace with the host by IP address or "0.0.0.0" (but this is dangerous, be carreful not to open too much your computer).
+    daemon = Pyro5.api.Daemon(host="localhost", port=9091)
+    ## Register the Pyro5 using a specific name so that it is predictable.
+    ## here: PYRO:dummy.pid@localhost:9091
+    import numpy as np
+    obj = ScriptServer()
+    uri = daemon.register(obj, "dummy.pid")
+    print(f"Dummy Server ready on Port 9091\nURI: {uri}")
+    daemon.requestLoop()
 
 
 

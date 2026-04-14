@@ -257,14 +257,14 @@ class Parameter(object):
             return self._scan_dict[self.key][key2]
         else:
             self.log.info(
-                "{} scan parameters did not exist : setting to default".format(
-                    key + self._delimiter + key2
+                "{} - {} scan parameters did not exist : setting to default".format(
+                    self.key,  key2
                 )
             )
             ## The default value is the value that was set
-            default_val = self.__dict__["_scan_"+key2]
+            default_val = Parameter.__dict__["_scan_"+key2]
             ## -. Update the scan dictionary
-            self._scan_dict[key][key2] = default_val
+            self._scan_dict[self.key][key2] = default_val
             return default_val
 
     def set_tab_and_name(self, tab_list:list):

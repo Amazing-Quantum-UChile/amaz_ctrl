@@ -26,7 +26,7 @@ Please document your code ;-).
 
 '''
 
-import os, threading, logging, json, copy, collections, shutil, random
+import os, threading, logging, json, copy, collections, shutil, re, random, difflib
 from datetime import datetime
 import itertools
 import numpy as np
@@ -48,7 +48,7 @@ class AmazingScript():
     "(2) A connect_sensors method that is called before the acquire method. Sensors stay connected during all the acquisition process.\n" \
     "(3) An acquire method that is called at each realization of the experiment. This method should return a dictionary with the results of the realization.\n" \
     "(4) A disconnect_sensors method that is called once the sequence of experiments is finished or whenever the stop button is pushed."
-    _default_exp_params = {"No of realizations":100}
+    _default_exp_params = {"No of realizations":100, "Type of experiment":"undefined"}
     _last_results = collections.deque(maxlen=200) 
     _sensors_are_connected = False
     _zero_time =datetime(2025, 1, 17, 14) ## the zero time of the quantum lab
@@ -59,13 +59,14 @@ class AmazingScript():
     _j_run = None
     _cached_data = collections.deque()
     _cached_data_locker = threading.Lock()
+    _author_list = ["bastian", "carlos", "carla", "victor", "fabian", "andrea", "nikolas", "diego", "vicenzo"]
     
     
     def __init__(self, 
                  exp_params_dir: str = None,
                  data_root_dir: str = None,
                  log_level="INFO"):
-        self._script_fn =inspect.getfile(self.__class__)
+        self._script_fn = inspect.getfile(self.__class__)
         self._script_dir = os.path.dirname(os.path.abspath(self._script_fn))
         
         ## Set up logs
@@ -99,6 +100,7 @@ class AmazingScript():
         list_of_experiments = self.build_list_of_experiments(scanned_params_dict)
         #-. Create data directory and save current scripts
         self.create_sequence_folder()
+        self.aggregate_sequence_metadata()
         self.save_scripts()
         #-. Start sequence
         self._on_sequence_about_to_start()
@@ -124,6 +126,7 @@ class AmazingScript():
     def start_experiment(self, i_exp):
         self._i_exp = i_exp
         self._exp_dir = self.create_experiment_folder()
+        
         self._prepare_experiment()
         self._on_experiment_about_to_start()
         self._connect_sensors()
@@ -162,10 +165,9 @@ class AmazingScript():
                 )
         with open(os.path.join(
                 self.seq_directory,
-                f"{i_exp:03}_result.json"),
+                f"{i_exp:03}_exp_params.json"),
                   "w") as f:
             json.dump(self._exp_params, f, )
-        
         self._i_exp, self._exp_dir = None, None
 
     def load_exp_param(self):
@@ -173,6 +175,7 @@ class AmazingScript():
         fpath = os.path.join(self._exp_params_dir, self._exp_param_fn)
         if not os.path.isfile(fpath):
             msg = f"The experiment parameter file does not exist. Either provide the path to the file in the initialisation or make sure a file '{self._exp_param_fn}' where you define your script."
+            self.log.error(msg)
         with open(fpath, 'r', encoding='utf-8') as file:
             exp_params = json.load(file)
         self._exp_params = self._check_exp_params(exp_params=exp_params)
@@ -285,6 +288,7 @@ class AmazingScript():
                                now.strftime("%m"),
                                now.strftime("%d"))
         os.makedirs(day_dir, exist_ok=True)
+        self._day_dir = day_dir
         ## We now list all folders of the day to check the number of the 
         # last sequence and set it to the new one
         day_dir_elements = os.listdir(day_dir)
@@ -392,6 +396,64 @@ class AmazingScript():
             data =list(self._cached_data)
             self._cached_data.clear()
         return data
+
+    def aggregate_sequence_metadata(self):
+        """this function writes experiment metadata and tags on"""
+        try:
+            fname = os.path.basename(self._script_fn)
+            ## 0. We define the metadata of the 
+            metadata = {"script":fname, 
+                        "type":self._exp_params["Type of experiment"],
+                        "tags":[],
+                        "authors":[]}
+            if "tags" in self._exp_params:
+                metadata["tags"]  = [x.strip() for x in re.split(r"[;,]",  self._exp_params["tags"]) if x.strip()]
+            if "authors" in self._exp_params:
+                metadata["authors"]  = [x.strip() for x in re.split(r"[;,]",  self._exp_params["authors"]) if x.strip()]
+            ##-. Update author name using close match
+            correct_author_list = []
+            for name in metadata["authors"]:
+                closest = difflib.get_close_matches(name.lower(), self._author_list, n=1, cutoff=0.8)
+                if not closest:
+                    self.log.warning(f"The author name {name} was not recognized within the author list {self._author_list}. If a new person arrived, please modify the author list in the AmazingScript file.")
+                    correct_author_list.append(name.lower())
+                else:
+                    correct_author_list.append(closest[0])
+            metadata["authors"] =correct_author_list
+            ## 1. We save metadata in the sequence directory
+            with open(os.path.join(
+                    self.seq_directory,
+                    f".metadata.json"),
+                    "w") as f:
+                json.dump(metadata, f, )
+            ## 2. Load metadata of the day directory
+            meta_dayta_fname = os.path.join(self._day_dir, f".metadata.json")
+            if os.path.exists(meta_dayta_fname):
+                with open(meta_dayta_fname, 'r', encoding='utf-8') as file:
+                    meta_dayta = json.load(file)
+                for key in metadata.keys():
+                    if key not in meta_dayta.keys():
+                        meta_dayta[key]=[]
+            else:
+                meta_dayta ={key:[] for key in metadata.keys()}
+            ##-. We update the day metadata dictionary using the one of the sequence.
+            for key, value in metadata.items():
+                if type(value)==list:
+                    for element in value:
+                        if not element in meta_dayta[key]:
+                            meta_dayta[key].append(element)
+                else:
+                    if value not in meta_dayta[key] and value:
+                        meta_dayta[key].append(value)
+            with open(meta_dayta_fname, "w") as f:
+                json.dump(meta_dayta, f)
+        except Exception as e:
+            self.log.warning(f"Failed to save the experiment metadata. Error is {type(e).__name__}:{e}")
+
+        
+
+
+
 
     ####################################################
     ### PROPERTIES AND METHODS FOR THE SCRIPT CLASS ####

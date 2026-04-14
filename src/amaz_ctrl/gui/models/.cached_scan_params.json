@@ -2,7 +2,7 @@
     "laser 2ph detuning (MHz)": {
         "start": 1.0,
         "stop": 20.0,
-        "steps": 2
+        "steps": 3
     },
     "laser 1ph detuning (MHz)": {
         "start": 0.0,
@@ -23,6 +23,21 @@
         "start": 0.0,
         "stop": 9.0,
         "steps": 10
+    },
+    "Type of experiment": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "tags": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "authors": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
     },
     "iteration duration (s)": {
         "start": 0.0,
