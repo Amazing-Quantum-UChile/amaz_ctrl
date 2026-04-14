@@ -48,9 +48,11 @@ class RbCellHeaterPID(PID_server):
     * stop: stops the PID loop,
     """
     temp_sensor_properties={"serial no":"AE015VCIA", "timeout":1.,"baudrate":115200}
+    power_supply_properties ={"serial no":"DP8C204905370"}
     temp_sensor = None
     _voltage_offset = 1.
     _temperature = None
+
 
     
 
