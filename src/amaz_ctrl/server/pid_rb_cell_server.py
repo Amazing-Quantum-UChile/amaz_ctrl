@@ -29,6 +29,7 @@ from amaz_ctrl.server.pid_server import PID_server
 import serial.tools.list_ports
 import serial
 import Pyro5.api
+import pyvisa as visa
 
 
 class RbCellHeaterPID(PID_server):
@@ -45,8 +46,6 @@ class RbCellHeaterPID(PID_server):
         set_output(output)
         sleep(sampling_period)
     * stop: stops the PID loop,
-
-    
     """
     temp_sensor_properties={"serial no":"AE015VCIA", "timeout":1.,"baudrate":115200}
     temp_sensor = None
@@ -58,7 +57,7 @@ class RbCellHeaterPID(PID_server):
     def connect(self):
         """writes here the method that connects to your sensor device."""
         ## 1. Connect to the Temperature sensor
-        self.temp_sensor_properties["port"] = self.get_usb_port_from_serial_no(self.temp_sensor_properties["serial no"])
+        self.temp_sensor_properties["port"] = self.get_serial_port_from_serial_number(self.temp_sensor_properties["serial no"])
         self.temp_sensor = serial.Serial(port = self.temp_sensor_properties["port"],
                                             baudrate= self.temp_sensor_properties["baudrate"], 
                                             timeout =self.temp_sensor_properties["timeout"])
@@ -67,6 +66,9 @@ class RbCellHeaterPID(PID_server):
             self.temp_sensor_properties["port"]
         ))
         ## 2. Connect to the Temperature sensor
+        self.rm = visa.ResourceManager()
+        print(self.get_visa_usb_resources())
+        # options=self.rm.list_resources('USB0::??????::??????::DP?*::INSTR')
        
 
     def set_output(self, output: float):
@@ -74,14 +76,25 @@ class RbCellHeaterPID(PID_server):
         pass
 
     def convert_output(self, output:float)->float:
-        """applies an offset to the computed value of the PID voltage"""
-        return output + self._voltage_offset
+        """applies an offset to the computed value of the PID voltage."""
+        ## 1. If temperature really away from the goal temperature, we go to maximum 
+        actual_temp = self.get_temperature()
+        if actual_temp < self.setpoint - 5:
+            output = max(self._output_limits)
+            return output
+        ## 2. If temperature is really too large, we set to zero.
+        elif actual_temp >self.setpoint+5:
+            return 0
+        return output
         
     def measure_input(self) -> float:
         """Returns the measured temperature."""
         return self.measure_temperature()
     
     def measure_temperature(self):
+        """measure temperature based on 
+        https://media.thorlabs.com/globalassets/items/t/tc/tc2/tc200/12597-d02.pdf?v=0116031151
+        """
         self.temp_sensor.write(b'tact?\r')
         full_read_temp=self.temp_sensor.read(1000)#.decode('ascii')
         #print(FullReadTemps[6:-5].decode('ascii'))
@@ -96,5 +109,11 @@ class RbCellHeaterPID(PID_server):
         else:
             return self._temperature
 if __name__ == "__main__":
-    server= RbCellHeaterPID()
+    server= RbCellHeaterPID(
+        setpoint=0,
+        pid_parameters={"kp": .15, "ki": 0, "kd": 0},
+        output_limits=(0, 10),
+        sampling_period = 1., # in seconds
+        history_size=50,
+    )
     print(server.get_temperature())
