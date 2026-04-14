@@ -25,7 +25,7 @@ Content of log_widget.py
 Defines the Logging widget in which we print log from both the GUI (i.e. this program) and the server. 
 '''
 import logging, csv, os, random
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui
 from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out
 
 

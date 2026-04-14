@@ -27,7 +27,7 @@ Implements the following classes:
     * PlotUnit: a QWidget with a vertical layout in which we store a pyqtgraph.PlotWidget and 3 QComboBox
 '''
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QComboBox, QGridLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QComboBox, QGridLayout
 import pyqtgraph as pg
 import pandas as pd
 import numpy as np

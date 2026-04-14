@@ -24,7 +24,7 @@ Content of about.py
 
 Hmmm.... this is a nice eastern egg ;-).
 '''
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 import random, os
 from datetime import datetime

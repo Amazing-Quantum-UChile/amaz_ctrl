@@ -47,7 +47,7 @@ MainWidget (QWidget, parent)
 """
 import datetime
 import numpy as np
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 class InfoWidget(QtWidgets.QScrollArea):
     def __init__(self, parent, model, geometry):

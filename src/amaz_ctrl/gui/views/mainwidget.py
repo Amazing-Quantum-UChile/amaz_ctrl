@@ -33,7 +33,7 @@ from amaz_ctrl.gui.views.info_widget import InfoWidget
 from amaz_ctrl.gui.views.buttons_widget import ButtonsWidget
 from amaz_ctrl.gui.views.log_widget import LogWidget
 from amaz_ctrl.gui.views.plot_widget import PlotsContainer
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 import numpy as np
 
 # import snoop

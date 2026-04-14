@@ -49,7 +49,7 @@ Methods:
 - _xxxx_btn_pushed(): Handles signals and connects to the model.
 """
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 import time
 class ButtonsWidget(QtWidgets.QScrollArea):
     button_height = 35

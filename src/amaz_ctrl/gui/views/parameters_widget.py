@@ -24,7 +24,7 @@ Content of parameters_widget.py
 
 Define the paramneter widget which inherits the QTabWidget. See doc below.
 """
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 
 class ParameterWidget(QtWidgets.QTabWidget):

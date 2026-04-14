@@ -28,7 +28,7 @@ This code creates a windows in which we display a text that helps the user if th
 import os
 import sys
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class HelpDialog(QtWidgets.QDialog):

@@ -25,10 +25,9 @@ Content of mainwindow.py
 Access to model using self._model and the main widget doing self._main_widget
 """
 
-import PyQt5.QtWidgets as QtWidgets
-import PyQt5.QtCore as QtCore
-import PyQt5.QtGui as QtGui
-import PyQt5.Qt as Qt
+import PyQt6.QtWidgets as QtWidgets
+import PyQt6.QtCore as QtCore
+from PyQt6.QtGui import QAction
 import sys
 
 from amaz_ctrl.gui.views.dialogs.help import HelpDialog
@@ -72,35 +71,35 @@ class MainWindow(QtWidgets.QMainWindow):
     def _setup_actions(self):
         """method that connects action (i.e. kehyboard shortcut, pressed button) to other methods."""
         ## --  Action exit
-        action_exit = QtWidgets.QAction("Quit", self)
+        action_exit = QAction("Quit", self)
         action_exit.setShortcut("Ctrl+Q")
         action_exit.setStatusTip("Exit Application")
         action_exit.triggered.connect(self.close)
         self._actions["exit"] = action_exit
         
         ## --  Action Save
-        action_save = QtWidgets.QAction("Save", self)
+        action_save = QAction("Save", self)
         action_save.setShortcut("Ctrl+S")
         action_save.setStatusTip("Save config")
         action_save.triggered.connect(self._save)
         self._actions["save"] = action_save
 
         ## --  Action Reset Plot data
-        action_reset_plots = QtWidgets.QAction("Reset Plot data", self)
+        action_reset_plots = QAction("Reset Plot data", self)
         action_reset_plots.setShortcut("Ctrl+R")
         action_reset_plots.setStatusTip("Reset Plot data")
         action_reset_plots.triggered.connect(self._reset_plot_data)
         self._actions["reset plots"] = action_reset_plots
 
         ## --  Action About
-        action_about = QtWidgets.QAction("About", self)
+        action_about = QAction("About", self)
         action_about.setStatusTip(
             "About the app")
         action_about.triggered.connect(self._on_about)
         self._actions["about"] = action_about
 
         ## --  Action Help
-        action_help = QtWidgets.QAction("Help", self)
+        action_help = QAction("Help", self)
         action_help.setStatusTip(
             "Help")
         action_help.setShortcut("Ctrl+H")

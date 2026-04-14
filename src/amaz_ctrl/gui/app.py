@@ -31,15 +31,15 @@ from amaz_ctrl.gui.views import mainwindow, mainwidget
 from amaz_ctrl.gui.models import mainmodel
 
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
 )
-from PyQt5.QtGui import QIcon
-from PyQt5 import QtGui
+from PyQt6.QtGui import QIcon
+from PyQt6 import QtGui
 import qdarkstyle
 import sys, os
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 class QuantumLightApp(QMainWindow):
     def __init__(self, model, main_window_type:QtWidgets.QMainWindow,
@@ -69,7 +69,7 @@ class QuantumLightApp(QMainWindow):
             self._model.log.debug("Failed to load fontawesome")
         
         if darkstyle: 
-            self._app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+            self._app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt6())
 
         ## -- Build application
         self._model._application = app
