@@ -31,6 +31,7 @@ from abc import ABC, abstractmethod
 import Pyro5.api
 from collections import deque
 from amaz_ctrl.tools.amaz_logs import set_console_log, connect_logger_to_call_out
+import serial.tools.list_ports
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
     def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO", max_data = 1000):
@@ -74,7 +75,17 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
     def add_data(self, data):
         self._data_buffer.append(data)
 
-
+    def list_usb_ports(self):
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            msg=f"Device: {port.device} | "
+            msg+=f"Name: {port.name} | "
+            msg+=f"Description: {port.description} | "
+            msg+=f"HWID: {port.hwid} | "
+            msg+=f"VID: {port.vid} | "
+            msg+=f"PID: {port.pid} | "
+            msg+=f"Serial number: {port.serial_number} | "
+            self.log.info(msg)
 
 
 

@@ -26,28 +26,38 @@ Please document your code ;-).
 
 '''
 from amaz_ctrl.server.pid_server import PID_server
-
-
-class EmptySensor():
-    is_open = False
-
+import serial.tools.list_ports
+import serial
 
 class RbCellHeaterPID(PID_server):
-    temp_sensor = EmptySensor()
+    _serial_no= "AE015VCIA"
+    _timeout = 1.
+    _baudrate = 115200
+    temp_sensor = None
     def connect(self):
         """writes here the method that connects to your sensor device."""
         ports = serial.tools.list_ports.comports()
-
+        ##-. We look for the port that matches the good serial number
+        selected_port = []
         for port in ports:
-            print(f"Device: {port.device}")
-            print(f"Name: {port.name}")
-            print(f"Description: {port.description}")
-            print(f"HWID: {port.hwid}")
-            print(f"VID: {port.vid}")
-            print(f"PID: {port.pid}")
-            print(f"Serial number: {port.serial_number}")
-            print("-" * 40)
-
+            if port.serial_number == self._serial_no:
+                selected_port.append(port.device)
+        if len(selected_port)==0:
+            msg = f"The serial number {self._serial_no} was not identified. Is it really plug?"
+            self.log.error(msg)
+            self.list_usb_ports()
+            raise serial.SerialException(msg)
+        elif len(selected_port)>1:
+            msg = f"The serial number {self._serial_no} is found on {len(selected_port)} different ports. This is weird. Please take a look."
+            self.log.error(msg)
+            self.list_usb_ports()
+            raise serial.SerialException(msg)
+        else:
+            self._port = selected_port[0]
+            self.temp_sensor = serial.Serial(port = self._port,
+                                             baudrate= self._baudrate, 
+                                             timeout =self._timeout)
+            self.log.info(f"Connected to {self._serial_no}  on port {self._port}")
         # ##-. Connect to the temperature sensor
         # self.temp_sensor = serial.Serial()
         # self.temp_sensor.baudrate = 115200
