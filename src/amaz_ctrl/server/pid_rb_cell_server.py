@@ -28,48 +28,72 @@ Please document your code ;-).
 from amaz_ctrl.server.pid_server import PID_server
 import serial.tools.list_ports
 import serial
+import Pyro5.api
+
 
 class RbCellHeaterPID(PID_server):
-    _serial_no= "AE015VCIA"
-    _timeout = 1.
-    _baudrate = 115200
+    """This PID locks the Rb Cell temperature. Inherit the following methods and properties from the PID_server:
+
+    Methods:
+    -------
+    * set_pid_parameters(kp, ki, kd),
+    * start: this starts the PID loop in a thread. Every sampling_period, it does the following:
+        input <- measure_input()
+        output <- compute_output(input)
+        output <- convert_output(output)
+        output <- self.check_output(output)
+        set_output(output)
+        sleep(sampling_period)
+    * stop: stops the PID loop,
+
+    
+    """
+    temp_sensor_properties={"serial no":"AE015VCIA", "timeout":1.,"beaudrate":115200}
     temp_sensor = None
+    _voltage_offset = 1.
+    _temperature = None
+
+    
+
     def connect(self):
         """writes here the method that connects to your sensor device."""
-        ports = serial.tools.list_ports.comports()
-        ##-. We look for the port that matches the good serial number
-        selected_port = []
-        for port in ports:
-            if port.serial_number == self._serial_no:
-                selected_port.append(port.device)
-        if len(selected_port)==0:
-            msg = f"The serial number {self._serial_no} was not identified. Is it really plug?"
-            self.log.error(msg)
-            self.list_usb_ports()
-            raise serial.SerialException(msg)
-        elif len(selected_port)>1:
-            msg = f"The serial number {self._serial_no} is found on {len(selected_port)} different ports. This is weird. Please take a look."
-            self.log.error(msg)
-            self.list_usb_ports()
-            raise serial.SerialException(msg)
-        else:
-            self._port = selected_port[0]
-            self.temp_sensor = serial.Serial(port = self._port,
-                                             baudrate= self._baudrate, 
-                                             timeout =self._timeout)
-            self.log.info(f"Connected to {self._serial_no}  on port {self._port}")
-        # ##-. Connect to the temperature sensor
-        # self.temp_sensor = serial.Serial()
-        # self.temp_sensor.baudrate = 115200
-        # self.temp_sensor.timeout = 1
+        ## 1. Connect to the Temperature sensor
+        self.temp_sensor_properties["port"] = self.get_usb_port_from_serial_no(self.temp_sensor_properties["serial no"])
+        self.temp_sensor = serial.Serial(port = self._port,
+                                            baudrate= self.temp_sensor_properties["baudrate"], 
+                                            timeout =self.temp_sensor_properties["timeout"])
+        self.log.info("Connected to the temperature sensor No {}  on port {}.".format(
+            self.temp_sensor_properties["serial no"],
+            self.temp_sensor_properties["port"]
+        ))
+        ## 2. Connect to the Temperature sensor
+       
 
     def set_output(self, output: float):
         """defines here the method that generate the output signal"""
         pass
 
+    def convert_output(self, output:float)->float:
+        """applies an offset to the computed value of the PID voltage"""
+        return output + self._voltage_offset
+        
     def measure_input(self) -> float:
         """Returns the measured temperature."""
-        return
+        return self.measure_temperature()
     
+    def measure_temperature(self):
+        self.temp_sensor.write(b'tact?\r')
+        full_read_temp=self.temp_sensor.read(1000)#.decode('ascii')
+        #print(FullReadTemps[6:-5].decode('ascii'))
+        self._temperature =float(full_read_temp[6:-5].decode('ascii'))        
+        return self._temperature 
+
+    @Pyro5.api.expose
+    def get_temperature(self):
+        """returns the last measured temperature"""
+        if self._temperature is None:
+            return self.measure_temperature()
+        else:
+            return self._temperature
 if __name__ == "__main__":
     temp= RbCellHeaterPID()

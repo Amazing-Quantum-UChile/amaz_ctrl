@@ -133,12 +133,14 @@ class PID_server(AmazingServer):
         pid = self.kp * self.error + self.ki * self.int_error + self.kd * diff_error
         return pid
 
+
     def _pid_loop(self):
         """implements the pid loop"""
         while self._is_running:
             self.input = self.measure_input()
             
             output = self.compute_output()
+            output = self.convert_output(output)
             output = self.check_output(output)
             self.log.debug(f"Output value is {output}.")
             self.set_output(output)
@@ -176,6 +178,9 @@ class PID_server(AmazingServer):
         """returns the value that we aim to stabilize."""
         return 0
 
+    def convert_output(self, output:float)->float:
+        """uses this method if you want to convert the output computed by the PID loop to an other value, i.e. apply an offset or Voltage <-> temperature conversion."""
+        return output
 
     ###################################################################
     ####---------- PUBLIC METHODS EXPOSED TO PYRO SERVER ----------####

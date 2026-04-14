@@ -76,7 +76,9 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
         self._data_buffer.append(data)
 
     def list_usb_ports(self):
+        """list all USB port and their description on the logger."""
         ports = serial.tools.list_ports.comports()
+        self.log.info("Hereafter, we list all USB port of the computer.\n"+"----"*15)
         for port in ports:
             msg=f"Device: {port.device} | "
             msg+=f"Name: {port.name} | "
@@ -86,7 +88,43 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
             msg+=f"PID: {port.pid} | "
             msg+=f"Serial number: {port.serial_number} | "
             self.log.info(msg)
+    def get_usb_port_from_serial_no(self, serial_number:str)->str:
+        """returns the USB port number which matches the serial number. 
+        Raises error if does not find.
+        
+        Parameters
+        ----------
+        serial_number : str
+            the serial number of the device we look for.
 
+        Returns
+        -------
+        str
+            the string of the port on which the device is connected.
+
+        Raises
+        ------
+        serial.SerialException
+            In case no serial device is found, the method raises an exception.
+        """
+        ports = serial.tools.list_ports.comports()
+        ##-. We look for the port that matches the good serial number
+        selected_port = []
+        for port in ports:
+            if port.serial_number == serial_number:
+                selected_port.append(port.device)
+        if len(selected_port)==0:
+            msg = "The serial number {} was not identified. Is it really plug?".format(serial_number)
+            self.log.error(msg)
+            self.list_usb_ports()
+            raise serial.SerialException(msg)
+        elif len(selected_port)>1:
+            msg = "The serial number {} is found on {} different ports. This is weird. Please take a look.".foramt(serial_number,len(selected_port) )
+            self.log.error(msg)
+            self.list_usb_ports()
+            raise serial.SerialException(msg)
+        else:
+            return selected_port[0]
 
 
 if __name__ == "__main__":
