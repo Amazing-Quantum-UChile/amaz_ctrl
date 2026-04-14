@@ -128,6 +128,7 @@ class MainWidget(QtWidgets.QWidget):
 
     def update_plot_data(self):
         ## get data
+        self._model.update_data_from_script_server()
         self.plots_container.update_all_plots()
 
     def save(self):
@@ -136,6 +137,7 @@ class MainWidget(QtWidgets.QWidget):
         ## in case the model did not accepted the value of the user
         self.params_widget.update_GUI_from_model()
         self.info_widget.refresh()
+        
     
 
     def update_logs_data(self):

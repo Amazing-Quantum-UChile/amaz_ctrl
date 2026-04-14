@@ -69,9 +69,13 @@ class InfoWidget(QtWidgets.QScrollArea):
         self.setWidgetResizable(True)
         ## Display the last refresh moment.
         rows = QtWidgets.QFormLayout(content)
-        rows.setContentsMargins(1,5,1,1)
+        rows.setContentsMargins(1,5,2,1)
+        rows.setVerticalSpacing(0)
+        
         self.show_refresh_time(rows)
         self.show_scanned_parameters(rows)
+    
+        
         
     def show_refresh_time(self, rows):
         """add the refresh time to the row"""
@@ -97,25 +101,18 @@ class InfoWidget(QtWidgets.QScrollArea):
                     title.setStyleSheet(" color : {}".format(color))
                     rows.addRow(title)
                     no_title = False
-                if self._model.parameter_dic[key].scan_steps >= 2:
-                    q1 = np.linspace(
-                        self._model.parameter_dic[key].scan_start,
-                        self._model.parameter_dic[key].scan_stop,
-                        self._model.parameter_dic[key].scan_steps,
-                    )
-                    steps = q1[1:] - q1[0:-1]
-                    step = steps[0]
+                if self._model.parameter_dic[key].type==bool:
+                    msg = f" - {key} from true to false."
                 else:
-                    step = 0
-                label = QtWidgets.QLabel(
-                    " - {} from {} to {} with {} steps of {:,.2f}".format(
+                    step = self._model.parameter_dic[key].get_step()
+                    msg = " - {} from {} to {} with {} steps of {:,.2f}".format(
                         key,
                         self._model.parameter_dic[key].scan_start,
                         self._model.parameter_dic[key].scan_stop,
                         self._model.parameter_dic[key].scan_steps,
                         step,
                     )
-                )
+                label = QtWidgets.QLabel(msg)
                 label.setWordWrap(True)
                 label.setStyleSheet(" color : {}".format(color))
                 rows.addRow(label)

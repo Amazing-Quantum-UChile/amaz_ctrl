@@ -52,10 +52,13 @@ class AmazingScript():
     _last_results = collections.deque(maxlen=200) 
     _sensors_are_connected = False
     _zero_time =datetime(2025, 1, 17, 14) ## the zero time of the quantum lab
-    exp_folder = None
+    _exp_dir = None
     _seq_number = None
     _seq_dir = None
     _i_exp = None
+    _j_run = None
+    _cached_data = collections.deque()
+    _cached_data_locker = threading.Lock()
     
     
     def __init__(self, 
@@ -82,8 +85,10 @@ class AmazingScript():
         self.data_root_dir = data_root_dir
         self._check_data_dir(self.data_root_dir)
 
+
     def main(self):
         self.start_sequence()
+
 
     def start_sequence(self):
         self.stop_event.clear()
@@ -105,7 +110,8 @@ class AmazingScript():
             self._exp_params = copy.deepcopy(self._init_exp_params)
             for key, elem in seq_update.items():
                 self._exp_params[key]=elem
-            self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)} of sequence {self._seq_number}.")
+            nruns = self._exp_params["No of realizations"]
+            self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._seq_number} [{nruns} realizations].")
             self.start_experiment(i_exp=i_exp)
         self.on_sequence_about_to_end()
         if self.stop_event.is_set():
@@ -116,16 +122,15 @@ class AmazingScript():
         self.log.info(f"Sequence {self._seq_number} {status} after {minutes}min {seconds}s.")
 
     def start_experiment(self, i_exp):
-        
         self._i_exp = i_exp
-        self.exp_folder = self.create_experiment_folder()
+        self._exp_dir = self.create_experiment_folder()
         self._prepare_experiment()
         self._on_experiment_about_to_start()
         self._connect_sensors()
         self._sensors_are_connected = True
         ## Set the ID of the Experiment 
         now = datetime.now()
-        exp_id = round((now - self._zero_time).total_seconds(), 2)
+        exp_id = round((now - self._zero_time).total_seconds(), 1)
         run_result_list = []
         for j_run in range(self._exp_params["No of realizations"]):
             if self.stop_event.is_set(): 
@@ -133,7 +138,7 @@ class AmazingScript():
             ## Define run ID, time since epoch rounding in 10 ms
             now = datetime.now()
             run_id = round((now - self._zero_time).total_seconds(), 2)
-            self.j_run = j_run
+            self._j_run = j_run
             run_result = self._acquire()
             run_result["Run No"] = j_run
             run_result["Run ID"] = run_id
@@ -142,7 +147,9 @@ class AmazingScript():
             run_result["Seq No"] = self._seq_number
             run_result["Seq ID"] = self.seq_id
             run_result["Time"] = now
+            self.add_result_to_cached_data(run_result)
             run_result_list.append(run_result)
+        self._j_run = None
         self.disconnect_sensors()
         self._sensors_are_connected = False
         self.experiment_result = pd.DataFrame(run_result_list)
@@ -159,10 +166,7 @@ class AmazingScript():
                   "w") as f:
             json.dump(self._exp_params, f, )
         
-        self._i_exp, self.exp_folder = None, None
-
-    
-    
+        self._i_exp, self._exp_dir = None, None
 
     def load_exp_param(self):
         """load the exp_params dictionary to set replace the exp_params argument."""
@@ -226,14 +230,7 @@ class AmazingScript():
             raise TypeError(f"The data directory {data_dir} is not a directory. Please provide a correct base data directory. The data directory is the root of the tree DATA_DIR/YYYY/MM/DD/SEQ in which we store the sequence.")
 
 
-    
-
-
-
-    
-
     def load_scanned_parameters(self)->dict:
-        
         """load the scanned_parameter dictionary."""
         try:
             fpath = os.path.join(self._exp_params_dir, self._scanned_param_fn)
@@ -254,9 +251,7 @@ class AmazingScript():
 
             # we build a list with all dictionaries
             product_list = []
-            for key, dic in scanned_params_dict.items():
-                values = np.linspace(dic["start"],
-                dic["stop"],int(dic["steps"]))
+            for key, values in scanned_params_dict.items():
                 new_item = [{key:val} for val in values]
                 product_list.append(new_item)
             all_list = list(itertools.product(*product_list))
@@ -320,9 +315,9 @@ class AmazingScript():
         os.makedirs(self._seq_dir, exist_ok=True)
 
     def create_experiment_folder(self)->str:
-        exp_folder = os.path.join(self._seq_dir,  f"{self._i_exp:03}")
-        os.makedirs(exp_folder, exist_ok=True)
-        return exp_folder
+        exp_dir = os.path.join(self._seq_dir,  f"{self._i_exp:03}")
+        os.makedirs(exp_dir, exist_ok=True)
+        return exp_dir
 
     def save_scripts(self):
         """this method copy and paste the elements of the script folder into the sequence folder so that the same experiment can be run again.
@@ -377,7 +372,27 @@ class AmazingScript():
                     )
                 self.log.warning(msg)
 
-        
+    def add_result_to_cached_data(self, data:dict):
+        """method that add data to the _cached_data collection. This collection is thought to be queried and cleared by the server while a task is running.
+        Here we use a locker so that the server using the add_result_to_cached_data and the script using the add_result_to_cached_data cannot modify _cached_data at the same time
+
+        Parameters
+        ----------
+        data : dict
+            dictionary that contains data. Typically run_result dictionary. 
+        """
+        ## We lock the data collection 
+        with self._cached_data_locker:
+            self._cached_data.append(data)
+        return
+    
+    def get_cached_data(self)-> list:
+        ## Here we use a locker so that the server using the add_result_to_cached_data and the script using the add_result_to_cached_data cannot modify _cached_data at the same time
+        with self._cached_data_locker:
+            data =list(self._cached_data)
+            self._cached_data.clear()
+        return data
+
     ####################################################
     ### PROPERTIES AND METHODS FOR THE SCRIPT CLASS ####
     ####################################################
@@ -398,8 +413,24 @@ class AmazingScript():
     
     @property
     def exp_directory(self):
-        return self._seq_dir
+        return self._exp_dir
     
+    @property
+    def i_exp(self):
+        return self._i_exp
+    
+    @property
+    def j_run(self):
+        return self._j_run
+    
+    @property
+    def run_prefix(self):
+        return os.path.join(self._exp_dir, "{:04}_".format(self._j_run))
+    
+    @property
+    def exp_prefix(self):
+        return os.path.join(self._seq_dir, "{:03}_".format(self._i_exp))
+
     ####################################################
     ### METHODS THAT CALL THE DAUGHTER CLASS METHODS ###
     ####################################################

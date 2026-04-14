@@ -14,7 +14,7 @@ dependencies = [
     "qdarkstyle (>=3.2.3,<4.0.0)",
     "pyro5 (>=5.16,<6.0)",
     "colorlog (>=6.10.1,<7.0.0)",
-    "pyqtgraph (>=0.14.0,<0.15.0)"
+    "pyqtgraph (>=0.14.0,<0.15.0)",
    
 ]
 

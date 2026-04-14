@@ -213,13 +213,18 @@ class ParameterWidget(QtWidgets.QTabWidget):
             layout.addWidget(
                 self.widget_dict[key]["value"], row, 1, 1, 5
             )  # span of 5 columns
+            
         else:
             lab = QtWidgets.QLineEdit()
             layout.addWidget(lab, row, 1)
             self.widget_dict[key]["value"] = lab
 
         if parameter.type in [str, bool]:
-            self.widget_dict[key]["scanned"] = NullWidget()
+            if parameter.type is bool:
+                self.widget_dict[key]["scanned"] = QtWidgets.QCheckBox(tristate=False)
+                layout.addWidget(self.widget_dict[key]["scanned"], row, 2)
+            else:
+                self.widget_dict[key]["scanned"] = NullWidget()
             self.widget_dict[key]["start"] = NullWidget()
             self.widget_dict[key]["stop"] = NullWidget()
             self.widget_dict[key]["steps"] = NullWidget()

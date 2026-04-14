@@ -1,8 +1,8 @@
 {
     "laser 2ph detuning (MHz)": {
-        "start": 0.0,
-        "stop": 9.0,
-        "steps": 10
+        "start": 1.0,
+        "stop": 20.0,
+        "steps": 2
     },
     "laser 1ph detuning (MHz)": {
         "start": 0.0,

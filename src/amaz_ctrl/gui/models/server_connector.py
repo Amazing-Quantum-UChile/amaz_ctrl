@@ -83,18 +83,13 @@ class ServerConnector():
                 self.log.warning(msg)
                 self._device = None
                 self._last_connection_try_warning = now
-            
-            
-            
     
     @property
     def is_connected(self)->bool:
         if self._device is None: 
             return False
         return True
-        
-
-class LogServerConnector(ServerConnector):
+    
     def get_logs(self)->list:
         #-. If disconnect, we try to reconect but if it is still not connected, f*#& it.
         if not self.is_connected:
@@ -109,8 +104,6 @@ class LogServerConnector(ServerConnector):
             self._device = None
             return []
 
-
-class DataServerConnector(ServerConnector):
     def get_data(self):
         #-. If disconnect, we try to reconect but if it is still not connected, f*#& it.
         if not self.is_connected:

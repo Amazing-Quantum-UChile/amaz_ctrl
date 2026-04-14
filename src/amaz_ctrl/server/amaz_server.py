@@ -33,18 +33,21 @@ from collections import deque
 from amaz_ctrl.tools.amaz_logs import set_console_log, connect_logger_to_call_out
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
-    def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO"):
+    def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO", max_data = 1000):
         self.logger_name = logger_name
         self._max_log = max_log
         self._log_level = log_level
+        self._max_data = max_data
         self._log_buffer = deque(maxlen=self._max_log)
+        self._data_buffer = deque(maxlen=self._max_data)
         self.log = logging.getLogger(self.logger_name)
         set_console_log(self.logger_name, log_level=self._log_level)
-        connect_logger_to_call_out(self.log, self._internal_log)
+        connect_logger_to_call_out(self.log, self._add_log)
 
 
     @Pyro5.api.expose
     def get_logs(self):
+        """return the logs collection and clear it once returned."""
         logs = list(self._log_buffer)
         self._log_buffer.clear()
         return logs
@@ -57,8 +60,19 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
         except ValueError:
             self.log.error(f"Failed to update the log level because '{lvl}' is not a valid logging level.")
 
-    def _internal_log(self, msg, lvl):
+    def _add_log(self, msg, lvl):
+        """this function is called whenever a message is logged on the server."""
         self._log_buffer.append({"level": lvl, "message": msg})
+
+    @Pyro5.api.expose
+    def get_data(self):
+        """returns the data collection and clear it after."""
+        data = list(self._data_buffer)
+        self._data_buffer.clear()
+        return data
+
+    def add_data(self, data):
+        self._data_buffer.append(data)
 
 
 

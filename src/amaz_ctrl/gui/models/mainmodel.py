@@ -34,11 +34,11 @@ import logging
 # import snoop
 from pathlib import Path
 from os.path import expanduser
-
-
+import pandas as pd
+import numpy as np
 from amaz_ctrl.tools.amaz_logs import set_console_log
 from amaz_ctrl.gui.models.parameter import Parameter
-from amaz_ctrl.gui.models.server_connector import LogServerConnector, DataServerConnector, ScriptServerConnector
+from amaz_ctrl.gui.models.server_connector import ServerConnector, ScriptServerConnector
 import json
 
 
@@ -100,10 +100,13 @@ class Model():
     }
     _tab_name_list = ["laser", "oscilloscope", "spectrum analyzer"]
     default_tab = "Other"
-    
+    _script_server_data =  pd.DataFrame(columns=["Run ID", "Run No",
+                                                 "Exp No", "Exp ID",
+                                                 "Seq No", "Seq ID",
+                                                   "Time"])
+
     def __init__(self,exp_param_directory:str, 
                  script_server_address = "PYRO:script.server@localhost:9090",
-                 data_server_addresses = ["PYRO:script.server@localhost:9090"],
                  log_server_addresses=["PYRO:script.server@localhost:9090"],
                  log_level="INFO", 
                  logger_name="GUI"):
@@ -140,12 +143,17 @@ class Model():
         self._delimiter = " | "
         self._generate_and_load()
 
+
         ##-. Set up the connection to Pyro servers
-        self.server_logs_dict ={uri:LogServerConnector(uri, log = self.log) for uri in log_server_addresses}
-        self.server_data_dict ={uri:DataServerConnector(uri,log = self.log) for uri in data_server_addresses}
         self.server_script_connector = ScriptServerConnector(script_server_address, 
                                                              log = self.log, 
                                                              dead_time=.3)
+        ## We add the script server 
+        if script_server_address in log_server_addresses:
+            log_server_addresses.remove(script_server_address)
+            
+        self.server_logs_dict ={uri:ServerConnector(uri, log = self.log) for uri in log_server_addresses}
+        self.server_logs_dict[script_server_address] = self.server_script_connector 
 
     @property
     def keys(self):
@@ -238,10 +246,14 @@ class Model():
             self._default_scan_dic[key]["stop"] = parameter.scan_stop
             self._default_scan_dic[key]["steps"] = parameter.scan_steps
             if parameter.scanned:
-                self._parameters_to_be_scan[key] = {}
-                self._parameters_to_be_scan[key]["start"] = parameter.scan_start
-                self._parameters_to_be_scan[key]["stop"] = parameter.scan_stop
-                self._parameters_to_be_scan[key]["steps"] = parameter.scan_steps
+                if parameter.type == bool:
+                    self._parameters_to_be_scan[key] = [True, False]
+                else:
+                    dx = parameter.get_step()
+                    if not dx is None:
+                        self._parameters_to_be_scan[key] =[parameter.scan_steps + dx*i for i in range(parameter.scan_steps)]
+                        
+
 
     def _load_exp_params(self):
         """this function loads all experiment parameters from the json file.
@@ -294,9 +306,27 @@ class Model():
         """
         self._save_exp_params()
         self._save_default_scan_dictionary()
+        self._save_default_scan_dictionary()
 
     def get_logs(self):
         log_list =[]
         for uri, server_log_connector in self.server_logs_dict.items():
             log_list+=server_log_connector.get_logs()
         return log_list
+    
+    def update_data_from_script_server(self):
+        """query data from the script server."""
+        ## data is a list of dictionaries
+        data = self.server_script_connector.get_data()
+        data = pd.DataFrame(data)
+        if len(data)<1:
+            return
+        ## if the old data dataframe was emtpy, we replace it by a new one.
+        if len(self._script_server_data)==0:
+            self._script_server_data = data
+        else:
+            self._script_server_data = pd.concat([self._script_server_data, data]).reset_index(drop = True)
+
+    def reset_script_server_data(self):
+        self._script_server_data = pd.DataFrame(columns=self._script_server_data.columns)
+

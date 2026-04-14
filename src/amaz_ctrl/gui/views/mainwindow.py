@@ -46,7 +46,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self._main_widget = None #for now
         self._actions = {}
         self._initialize_ui()
+        self.log = self._model.log
 
+        # This magic timer is used to handel SIGINT cleanly. See
+        # below.
+
+        # self._model.start_threads()
 
     def _initialize_ui(self):
         self._setup_main_widget()
@@ -79,6 +84,13 @@ class MainWindow(QtWidgets.QMainWindow):
         action_save.setStatusTip("Save config")
         action_save.triggered.connect(self._save)
         self._actions["save"] = action_save
+
+        ## --  Action Reset Plot data
+        action_reset_plots = QtWidgets.QAction("Reset Plot data", self)
+        action_reset_plots.setShortcut("Ctrl+R")
+        action_reset_plots.setStatusTip("Reset Plot data")
+        action_reset_plots.triggered.connect(self._reset_plot_data)
+        self._actions["reset plots"] = action_reset_plots
 
         ## --  Action About
         action_about = QtWidgets.QAction("About", self)
@@ -120,6 +132,7 @@ class MainWindow(QtWidgets.QMainWindow):
         fm = m.addMenu("&File")
         fm.addAction(self._actions["save"])
         fm.addAction(self._actions["exit"])
+        fm.addAction(self._actions["reset plots"])
         return fm
 
     def _setup_menu_help(self):
@@ -139,3 +152,11 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog = AboutDialog(self, self._model)
         dialog.setWindowModality(QtCore.Qt.ApplicationModal)
         dialog.exec_()
+
+    def _reset_plot_data(self):
+        self._model.reset_script_server_data()
+        try:
+            self._main_widget.plots_container.update_all_plots()
+        except Exception as e:
+            self.log.warning(f"The plots failed to reset. Error is {type(e).__name__}:{e}")
+        

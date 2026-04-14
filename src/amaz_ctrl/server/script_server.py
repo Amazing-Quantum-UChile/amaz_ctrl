@@ -22,16 +22,15 @@
 '''
 Content of script_server.py
 
-Please document your code ;-).
-
+this file implements the ScriptServer class which handles the RUN, STOP and LOAD_SCRIPT functions that the client use to run scripts. 
 '''
 from amaz_ctrl.tools.amaz_exception import ExperimentIsRunning, NoScriptToRun
 from amaz_ctrl.server.amaz_server import AmazingServer
-import importlib, sys
+import importlib, sys, random
 import Pyro5.api
 import threading, os, datetime
 from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out
-
+import pandas as pd
 class ScriptServer(AmazingServer):
     _script_class = "Script" #the name of the class we import
     _path_to_scripts = "amaz_ctrl.scripts" #the path within the module of the script. 
@@ -43,12 +42,14 @@ class ScriptServer(AmazingServer):
     def __init__(self,
                  logger_name="SCRIPT_SERVER",
                  max_log=100,
-                 log_level="INFO"
+                 log_level="INFO",
+                 **kwargs
                  ):
         super().__init__(
             logger_name=logger_name, 
             max_log=max_log,
-            log_level=log_level
+            log_level=log_level,
+            **kwargs
             )
 
     ###################################################################
@@ -95,7 +96,9 @@ class ScriptServer(AmazingServer):
             if script_name[-3:] == ".py":
                 script_name=script_name[:-3]
             complete_module_name = self._path_to_scripts +"."+script_name
+            self.purge_script_modules()
             if complete_module_name in sys.modules:
+                self.log.warning("The script module we import was not purged. This means that the imports of your script were not reloaded. Check me in ScriptServer._upload_script.")
                 self.current_module = importlib.reload(sys.modules[complete_module_name])
             else:
                 self.current_module = importlib.import_module(complete_module_name)
@@ -103,7 +106,7 @@ class ScriptServer(AmazingServer):
             self.script = class_script()
 
             ## Connect logs of the Script to add them to the Server Log collection
-            connect_logger_to_call_out(self.script.log, self._internal_log)
+            connect_logger_to_call_out(self.script.log, self._add_log)
             self.log.info(f"Script '{script_name}´ successfully uploaded.")
 
 
@@ -160,6 +163,27 @@ class ScriptServer(AmazingServer):
         self._thread_running.start()
 
 
+    def purge_script_modules(self):
+        """
+        Cleans the sys.modules cache to force a deep reload of script dependencies 
+        and instantiates the Script class.
+        
+        Parameters:
+            module_name_to_load (str): The full dot-path of the main script (e.g., 'amaz_ctrl.scripts.main_experiment')
+            package_prefix (str): The root namespace to purge from cache (e.g., 'amaz_ctrl.scripts')
+        """
+        try:
+            # 1. Identify all loaded modules that belong to the targeted package
+            # This ensures that sub-scripts like 'amaztctrl.scripts.subscriptslaser' are also purged
+            modules =[ mod for mod in sys.modules]
+            to_purge = [mod for mod in sys.modules if self._path_to_scripts in mod]
+            # 2. Remove identified modules from the internal Python cache
+            for mod in to_purge:
+                self.log.debug(f"Purging module {mod}")
+                del sys.modules[mod]
+        except Exception as e:
+            self.log.error(f"Failed to purge the script directory: {type(e).__name__}: {str(e)}")
+            raise
     
     ###################################################################
     ####---------- PUBLIC METHODS EXPOSED TO PYRO SERVER ----------####
@@ -190,12 +214,41 @@ class ScriptServer(AmazingServer):
     @Pyro5.api.oneway
     def run_script(self):
         self._run_script()
+        
     
-
     @Pyro5.api.expose
     @Pyro5.api.oneway
     def stop(self):
+        if self.script is None:
+            self.log.info("How can I stop an experiment while you haven't even load a script?")
+            return
+        if not self.is_running :
+            if random.random()<.1:
+                self.log.info("The experiment is already stopped my friend.")
         self.script.stop_acquisition()
+        
+
+    @Pyro5.api.expose
+    def get_data(self):
+        """returns the data collection and clear it after."""
+        if self.script is None:
+            return []
+        raw_data = self.script.get_cached_data()
+        if raw_data ==[]:
+            return []
+        ## we must clean the dictionary for PYRO communication. Remove numpy stule
+        clean_data = []
+        for entry in raw_data:
+            clean_entry = {}
+            for key, value in entry.items():
+                # Convert NumPy float64/int64 into standard float/int 
+                if hasattr(value, 'item'): 
+                    clean_entry[key] = value.item()
+                else:
+                    clean_entry[key] = value
+            clean_data.append(clean_entry)
+        return clean_data
+
         
 
 

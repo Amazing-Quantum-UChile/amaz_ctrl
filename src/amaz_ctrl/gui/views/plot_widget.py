@@ -37,15 +37,7 @@ class PlotsContainer(QGroupBox):
         super().__init__("Plots",parent)
         self._model = model
         self.log = self._model.log
-        x = np.linspace(0, 5, 50)
-        df_list = []
-        for k in [1, 1.3, .6]:
-             df_list.append(pd.DataFrame({"XX": x, 
-                                              "sin":np.sin(x*k),"exp":np.exp(k*x/5),
-                                              "sinc":np.sinc(k*x), "x2":k*x**2/25,
-                                              "param":np.ones(len(x))*k})
-             )
-        self._model.data_user =pd.concat(df_list)
+        
         
         
         self.main_layout = QHBoxLayout(self)
@@ -60,7 +52,7 @@ class PlotsContainer(QGroupBox):
             self.main_layout.addWidget(unit)
             self.plot_units.append(unit)
 
-        self.update_all_plots()
+        # self.update_all_plots()
             
     def update_all_plots(self):
         for unit in self.plot_units:
@@ -92,7 +84,7 @@ class PlotUnit(QWidget):
         self.main_layout = QVBoxLayout(self)
 
 
-        # 1. Le Graphique
+        # 1. the graph
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('k') # Fond noir classique
         self.curve = self.plot_widget.plot(pen='y') # Ligne jaune par défaut
@@ -118,26 +110,22 @@ class PlotUnit(QWidget):
 
         self.main_layout.addLayout(self.grid_layout)
         self.update_column_menus()
+        self.set_default_columns()
         self.refresh_plot()
 
-
-        ## TO DELETE
-        cols = ["sin", "XX", "exp", "x2", "sinc"]
-        self.control_layout["X"]["combo"].setCurrentText("XX")
-        self.control_layout["Y"]["combo"].setCurrentText(cols[random.randint(0, 4)])
-        self.control_layout["color"]["combo"].setCurrentText("param")
-
-        
-        
-
+    def get_current_combo_list(self)->list:
+        """return the combo list, that is the list of string that can be selected for the first control variable (i.e.X). Note that all combo list are the same so checking X is like Y or color"""
+        var = self.control_variables[0]
+        combo = self.control_layout[var]["combo"]
+        liste_items = [combo.itemText(i) for i in range(combo.count())]
+        return liste_items
+    
     def update_column_menus(self):
         """Update the QCombo list where we chose """
         # We check if the list of possible variables changed since last update.
         self._pause_refresh = True
-        var = self.control_variables[0]
-        combo = self.control_layout[var]["combo"]
-        liste_items = [combo.itemText(i) for i in range(combo.count())]
-        data_cols =["None"]+ list(self._model.data_user.columns)
+        liste_items = self.get_current_combo_list()
+        data_cols =["None"]+ list(self._model._script_server_data.columns)
         if  liste_items == data_cols:
             self._pause_refresh = False
             return
@@ -152,18 +140,32 @@ class PlotUnit(QWidget):
                 combo.setCurrentText(previous_column)
         self._pause_refresh = False
     
+    def set_default_columns(self):
+        """this method set the default names for the stuffs to plots"""
+        
+        liste_items = self.get_current_combo_list()
+        x, y, hue = "Run No", "Exp No", "Exp ID"
+        if x in liste_items:
+            self.control_layout["X"]["combo"].setCurrentText(x)
+        if y in liste_items:
+            self.control_layout["Y"]["combo"].setCurrentText(y)
+        if hue in liste_items:
+            self.control_layout["color"]["combo"].setCurrentText(hue)
+
+
+
     def _callback_on_UI_changed(self):
         self.plot_widget.enableAutoRange(axis='xy', enable=True)
-        self.refresh_plot
+        self.refresh_plot()
 
     def refresh_plot(self):
-        """Méthode appelée par le timer de l'application principale."""
+        """Refresh the plot if the pause refressh is false. The  pause_refresh is ON during the setup of the GUI. This method is called by PlotsContainer.update_all_plots() which is connected to the QTimer that refreshes every XX=5 seconds."""
         ## this condition allow not to refresh the plot during the time we update the column menue
         if self._pause_refresh:
             return
-        df = self._model.data_user
+        df = self._model._script_server_data
 
-        # On récupère les noms des colonnes choisies par l'utilisateur
+        # Retrieve the name chosen by the user 
         col_x = self.control_layout["X"]["combo"].currentText()
         col_y = self.control_layout["Y"]["combo"].currentText()
         
@@ -198,7 +200,6 @@ class PlotUnit(QWidget):
                                           symbol=self._symbols[i], 
                                           symbolSize=self._size_marker,
                                           symbolBrush=(self._colors[i]), name = str(value)) 
-                
                 curve.setData(df1[col_x].values, df1[col_y].values)
         else : #hue type plot
             hue_values = df[plot_by].values

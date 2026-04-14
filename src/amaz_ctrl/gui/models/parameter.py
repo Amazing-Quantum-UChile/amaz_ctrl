@@ -69,6 +69,7 @@ class Parameter(object):
         self._type = type(value)
         self._scan_dict = scan_dict
         self.log = log
+        self.update_attributes_from_scan_parameter()
        
             
         
@@ -162,7 +163,22 @@ class Parameter(object):
             self._scan_start = float(val)
         except ValueError:
             self.log.error(f"The start value of a scan must be a number, not '{val}'. Start value of '{self.key}' not updated.")
-
+    
+    def get_step(self):
+        if self.type == bool:
+            return 1
+        if not type(self.scan_steps) == int:
+            self.log.error(f"The number of steps must be an integer my friend. Please modify for {self.key}.")
+            return None
+        if self.scan_steps < 2:
+            self.log.warning(f"The number of steps for the scan of {key} is smaller than 2 (currently {parameter.scan_steps}). Note that the value of a parameter cannot be in a quantum superposition of {self.scan_start} and {self.scan_stop}.")
+            return None
+        try:
+            dx =(self.scan_stop - self.scan_start)/(self.scan_steps-1)
+            return dx
+        except Exception as e:
+            self.log.error(f"An unexpected error occured when requiring the number of steps for the scan of {self.key}, from {self.scan_start} to {self.scan_stop} with N={self.scan_steps}. Error is {type(e).__name__}:{e}.")
+            
     def set_scan_stop(self, val:float):
         """sets the initial value of the scan of the parameter
 
@@ -236,6 +252,7 @@ class Parameter(object):
         ## check that the parameters already exists in the dictionary. If not create it-
         if not (self.key in self._scan_dict):
             self._scan_dict[self.key] = {}
+
         if key2 in self._scan_dict[self.key]:
             return self._scan_dict[self.key][key2]
         else:
