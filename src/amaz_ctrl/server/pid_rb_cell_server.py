@@ -48,7 +48,7 @@ class RbCellHeaterPID(PID_server):
 
     
     """
-    temp_sensor_properties={"serial no":"AE015VCIA", "timeout":1.,"beaudrate":115200}
+    temp_sensor_properties={"serial no":"AE015VCIA", "timeout":1.,"baudrate":115200}
     temp_sensor = None
     _voltage_offset = 1.
     _temperature = None
@@ -59,7 +59,7 @@ class RbCellHeaterPID(PID_server):
         """writes here the method that connects to your sensor device."""
         ## 1. Connect to the Temperature sensor
         self.temp_sensor_properties["port"] = self.get_usb_port_from_serial_no(self.temp_sensor_properties["serial no"])
-        self.temp_sensor = serial.Serial(port = self._port,
+        self.temp_sensor = serial.Serial(port = self.temp_sensor_properties["port"],
                                             baudrate= self.temp_sensor_properties["baudrate"], 
                                             timeout =self.temp_sensor_properties["timeout"])
         self.log.info("Connected to the temperature sensor No {}  on port {}.".format(
@@ -96,4 +96,5 @@ class RbCellHeaterPID(PID_server):
         else:
             return self._temperature
 if __name__ == "__main__":
-    temp= RbCellHeaterPID()
+    server= RbCellHeaterPID()
+    print(server.get_temperature())
