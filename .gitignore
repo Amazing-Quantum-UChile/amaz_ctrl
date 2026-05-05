@@ -1,4 +1,5 @@
 # Specify filepatterns you want git to ignore.
+src/amaz_ctrl/scripts/scanned_params.json
 
 .DS_Store
 .vscode
