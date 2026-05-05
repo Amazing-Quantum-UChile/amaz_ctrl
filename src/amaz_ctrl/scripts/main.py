@@ -32,7 +32,8 @@ class Script(AmazingScript):
         log.info("I just prepared the experiment!!")
 
     def connect_sensors(self):
-        log.info("I am now connected to sensors...")
+
+        log.info("Setting up sensors...")
     
     def disconnect_sensors(self):
         log.info("... Disconnected !")
@@ -43,7 +44,6 @@ class Script(AmazingScript):
         freq = self._exp_params["laser 2ph detuning (MHz)"]
         if self.j_run == 10:
             print(self.run_prefix)
-            print(freq, self.j_run)
         result = {"Res1": math.sin(freq * self.j_run/60 ) + .2*(random.random()-.5),
                   "Res2":np.sinc((self.j_run-50) *0.1)*(1+.1*random.random()) + .2*(random.random()-.5),
                   "Res3":1- np.exp(-(self.j_run)*(0.003*self.seq_number) + + .2*(random.random()-.5)) 

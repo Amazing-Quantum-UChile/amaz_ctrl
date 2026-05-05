@@ -6,7 +6,7 @@
     "No of realizations": 100,
     "Type of experiment": "squeezing",
     "tags": "squeezing, Rb cell, four-wave mixing",
-    "authors": "VICTOR, basti, carlito",
+    "authors": "Victor",
     "iteration duration (s)": 1.0,
     "spectrum analyzer Carlos acquire": true,
     "spectrum analyzer Carlos freq central (MHz)": 4.0,
