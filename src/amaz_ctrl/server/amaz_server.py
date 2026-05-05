@@ -32,8 +32,13 @@ import Pyro5.api
 from collections import deque
 from amaz_ctrl.tools.amaz_logs import set_console_log, connect_logger_to_call_out
 import serial.tools.list_ports
+import threading 
 
 class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
+    
+    _thread_running = None
+    stop_event = threading.Event() 
+
     def __init__(self, logger_name="SERVER", max_log=100, log_level="INFO", max_data = 1000):
         self.logger_name = logger_name
         self._max_log = max_log
@@ -75,105 +80,20 @@ class AmazingServer(ABC):# Inherits from ABC to be an abstract base class
     def add_data(self, data):
         self._data_buffer.append(data)
 
-    def list_usb_ports(self):
-        """list all USB port and their description on the logger."""
-        ports = serial.tools.list_ports.comports()
-        self.log.info("Hereafter, we list all USB port of the computer.\n"+"----"*15)
-        for port in ports:
-            msg=f"Device: {port.device} | "
-            msg+=f"Name: {port.name} | "
-            msg+=f"Description: {port.description} | "
-            msg+=f"HWID: {port.hwid} | "
-            msg+=f"VID: {port.vid} | "
-            msg+=f"PID: {port.pid} | "
-            msg+=f"Serial number: {port.serial_number} | "
-            self.log.info(msg)
-    def get_serial_port_from_serial_number(self, serial_number:str)->str:
-        """Return the serial port device path matching a given USB serial number.
+    ###############################################
+    ############## THREADING FUNCTION #############
+    ###############################################
+    @property
+    @Pyro5.api.expose
+    def is_running(self)->bool:
+        """returns wether the _thread_running is alive or not, i.e. if an experiment is running."""
+        return self._thread_running is not None and self._thread_running.is_alive()
+    
 
-        This method scans all available serial ports and returns the device
-        name (e.g. 'COM3', '/dev/ttyUSB0') corresponding to the provided
-        serial number.
+    
 
-        Parameters
-        ----------
-        serial_number : str
-            The USB serial number of the device to find.
-
-        Returns
-        -------
-        str
-            The device path of the matching serial port.
-
-        Raises
-        ------
-        serial.SerialException
-            If no matching device is found or if multiple devices share the same
-            serial number.
-        """
-        ports = serial.tools.list_ports.comports()
-        ##-. We look for the port that matches the good serial number
-        selected_ports = []
-        for port in ports:
-            if port.serial_number == serial_number:
-                selected_ports.append(port.device)
-        if len(selected_ports)==0:
-            msg = "The serial number {} was not identified. Is the device plugged in?".format(serial_number)
-            self.log.error(msg)
-            self.list_usb_ports()
-            raise serial.SerialException(msg)
-        elif len(selected_ports)>1:
-            msg = "The serial number {} is found on {} different ports. This is weird. Please take a look.".format(serial_number,len(selected_ports) )
-            self.log.error(msg)
-            self.list_usb_ports()
-            raise serial.SerialException(msg)
-        else:
-            return selected_ports[0]
-    def get_visa_usb_resources(self):
-        if not hasattr(self, "rm"):
-            self.rm = pyvisa.ResourceManager()
-        return self.rm.list_resources("USB?*::INSTR")
-
-    def get_visa_usb_resource_from_serial(self, serial_no: str) -> str:
-        """Return the VISA USB resource matching a given serial number.
-
-        This function searches only USB VISA devices and filters them
-        by checking if the serial number is contained in the resource string.
-
-        Parameters
-        ----------
-        serial_no : str
-            Serial number of the instrument.
-
-        Returns
-        -------
-        str
-            VISA resource string (e.g. 'USB0::0xXXXX::0xXXXX::SERIAL::INSTR')
-
-        Raises
-        ------
-        serial.SerialException
-            If no device or multiple devices match the serial number.
-        """
-
-        # Only USB VISA instruments
-        resources = self.get_visa_usb_resources()
-        
-
-        # Filter by serial number inside VISA string
-        matches = [r for r in resources if serial_no in r]
-
-        if len(matches) == 0:
-            msg = f"No VISA USB device found with serial number '{serial_no}'"
-            self.log.error(msg)
-            raise serial.SerialException(msg)
-
-        if len(matches) > 1:
-            msg = f"Multiple VISA USB devices found with serial '{serial_no}': {matches}"
-            self.log.error(msg)
-            raise serial.SerialException(msg)
-
-        return matches[0]
+    
+    
 if __name__ == "__main__":
     ## -. The Daemon is a background process that listens for incoming network requests on a given ip/port, here 9091 (otherwise Pyro5 would just pick a random one). 
     # Currently we set IP to "localhost" for single-machine testing.

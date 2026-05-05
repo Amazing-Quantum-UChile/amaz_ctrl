@@ -36,7 +36,6 @@ class ScriptServer(AmazingServer):
     _path_to_scripts = "amaz_ctrl.scripts" #the path within the module of the script. 
     script = None
     current_module = None
-    _thread_running = None
     _are_params_set = False
     _set_parameters_timeout = 30 #timeout before we terminate the function
     def __init__(self,
@@ -55,10 +54,6 @@ class ScriptServer(AmazingServer):
     ###################################################################
     ##########################  Properties   ##########################
     ###################################################################
-    @property
-    def is_running(self)->bool:
-        """returns wether the _thread_running is alive or not, i.e. if an experiment is running."""
-        return self._thread_running is not None and self._thread_running.is_alive()
     
 
     ###################################################################

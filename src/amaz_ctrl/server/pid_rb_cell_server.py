@@ -26,7 +26,6 @@ Please document your code ;-).
 
 '''
 from amaz_ctrl.server.pid_server import PID_server
-import serial.tools.list_ports
 import serial
 import Pyro5.api
 import pyvisa as visa
@@ -69,7 +68,7 @@ class RbCellHeaterPID(PID_server):
         ))
         ## 2. Connect to the Temperature sensor
         self.rm = visa.ResourceManager()
-        print(self.get_visa_usb_resources())
+        print(get_visa_usb_resources())
         # options=self.rm.list_resources('USB0::??????::??????::DP?*::INSTR')
        
 
@@ -110,6 +109,8 @@ class RbCellHeaterPID(PID_server):
             return self.measure_temperature()
         else:
             return self._temperature
+        
+    
 if __name__ == "__main__":
     server= RbCellHeaterPID(
         setpoint=0,

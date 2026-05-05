@@ -43,6 +43,7 @@ class PID_server(AmazingServer):
     int_error = 0
     _is_running = False
     thread = None
+    last_pid_measurement = None
     
 
     def __init__(
@@ -121,15 +122,26 @@ class PID_server(AmazingServer):
             self.log.critical(
                 f"ValueError. Failed to set the PID value kd={kd}. Old values {self.kd} is kept."
             )
-            
+
 
     def compute_output(self):
         """compute the PID output using the input, last input, integrated 
         error, setpoint and PID parameters."""
-        last_error = self.error #store last error
+        #store last error
+        last_error = self.error 
         self.error = self.setpoint - self.input
-        self.int_error += self.error
-        diff_error = self.error - last_error
+        ## Compute time
+        if self.last_pid_measurement is None:
+            pid = self.kp * self.error 
+            return pid
+        now = time.time()
+        dt = now - self.last_pid_measurement
+
+        self.int_error += self.error * dt
+        if dt<=0:
+            diff_error = 0
+        else:
+            diff_error = (self.error - last_error) / dt
         pid = self.kp * self.error + self.ki * self.int_error + self.kd * diff_error
         return pid
 

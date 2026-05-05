@@ -41,7 +41,7 @@ log_formatter_console = colorlog.ColoredFormatter(
             style="%",
         )
 
-def set_console_log(logger_name, log_level="INFO"):
+def set_console_log(logger_name:str, log_level="INFO"):
     """setups the log printed in the console for the server."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(log_level)
