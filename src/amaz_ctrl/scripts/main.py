@@ -4,6 +4,10 @@ import time, os, logging
 log = logging.getLogger("SCRIPT")
 import numpy as np
 import math,random
+from amaz_ctrl.scripts.subscripts.spectrum_anal_agilent import SpectrumAnalyzerAgilent
+from amaz_ctrl.scripts.subscripts.laser import RigolDSG815
+from scipy.optimize import curve_fit
+
 
 class Script(AmazingScript):
     """A Script that inherits the AmazingScript possesses the following attributs:
@@ -32,6 +36,10 @@ class Script(AmazingScript):
         log.info("I just prepared the experiment!!")
 
     def connect_sensors(self):
+        self.sa_agilent = SpectrumAnalyzerAgilent()
+        self.sa_agilent.set_params()
+        self.wfg_rigolGHz = RigolDSG815()
+        self.wfg_rigolGHz.set_params()
 
         log.info("Setting up sensors...")
     
@@ -40,14 +48,29 @@ class Script(AmazingScript):
 
 
     def acquire(self)->dict:
-        time.sleep(.1)
-        freq = self._exp_params["laser 2ph detuning (MHz)"]
-        if self.j_run == 10:
-            print(self.run_prefix)
-        result = {"Res1": math.sin(freq * self.j_run/60 ) + .2*(random.random()-.5),
-                  "Res2":np.sinc((self.j_run-50) *0.1)*(1+.1*random.random()) + .2*(random.random()-.5),
-                  "Res3":1- np.exp(-(self.j_run)*(0.003*self.seq_number) + + .2*(random.random()-.5)) 
-                  }
+        result={}
+        ### We set the frequency of the analyser.
+        freq = 1515.5 + +.25*(self.j_run%25)
+        result["freq (MHz)"] = freq
+        self.wfg_rigolGHz.set_frequency(freq/1000.)
+        time.sleep(.4)
+
+
+
+        freq, ampli = self.sa_agilent.get_trace()
+        p0=[80, np.max(ampli), .5, 0 ]
+        popt, pcov = curve_fit(lorentzian,
+                               freq,
+                               ampli, p0=p0,
+                        bounds=([78, 0, .001, 0],[83, 200,5,10])
+                        )
+        perr = np.sqrt(np.diag(pcov))
+        result["Amplitude"] = popt[1]
+        result["Gamma (kHz)"] = popt[2] *1000
+        result["U(Amplitude)"] = perr[1]
+        result["U(Gamma) (kHz)"] = perr[2] *1000
+        error = np.sum((lorentzian(freq, *popt)-ampli)**2)
+        result["Fit error"] =error
         return result
     
     def on_experiment_about_to_start(self):
@@ -67,6 +90,9 @@ class Script(AmazingScript):
         """method called before after a sequence of experiments finished so that the user can do whatever they want at this stage."""
         pass
 
+
+def lorentzian( x, x0, a, gam, offset ):
+    return a * (gam/2)**2 / ( (gam/2)**2 + ( x - x0 )**2) + offset
 
 
 if __name__ == "__main__":

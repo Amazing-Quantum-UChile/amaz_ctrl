@@ -98,7 +98,7 @@ class Model():
         "stop" : 9,
         "unit" : "dimensionless",
     }
-    _tab_name_list = ["laser", "oscilloscope", "spectrum analyzer"]
+    _tab_name_list = ["laser", "SA Agil" ]
     default_tab = "Other"
     _script_server_data =  pd.DataFrame(columns=["Run ID", "Run No",
                                                  "Exp No", "Exp ID",
