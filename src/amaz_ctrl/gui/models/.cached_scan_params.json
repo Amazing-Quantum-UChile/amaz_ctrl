@@ -14,7 +14,7 @@
         "stop": 0.0,
         "steps": 0
     },
-    "Rb cell temperature (Ã‚Â°C)": {
+    "Rb cell temperature (°C)": {
         "start": 0.0,
         "stop": 9.0,
         "steps": 10

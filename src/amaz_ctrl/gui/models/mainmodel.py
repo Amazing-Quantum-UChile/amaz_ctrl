@@ -268,7 +268,7 @@ class Model():
         If the dictionnary is already flattened, it does nothing. 
         """
         try:
-            with open(self._parameter_path, "r") as file:
+            with open(self._parameter_path, "r", encoding="utf-8") as file:
                 self._exp_params_dictionary = json.load(file)
         except FileNotFoundError:
             raise FileNotFoundError("The experiment parameter file was not found. Please instanciate the Model of the Amazing Control Application with the directory in which a exp_param.json file exists.")
@@ -286,7 +286,7 @@ class Model():
          "AOM | freq":{"start": 90, "stop":105, "steps":10, "units": "MHz"}
         """
         if os.path.isfile(self._def_scan_path):
-            with open(self._def_scan_path, "r") as file:
+            with open(self._def_scan_path, "r", encoding="utf-8") as file:
                 self._default_scan_dic = json.load(file)
         else:
             self._default_scan_dic = {}
