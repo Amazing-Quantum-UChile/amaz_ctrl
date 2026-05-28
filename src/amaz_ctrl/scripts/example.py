@@ -73,5 +73,6 @@ if __name__ == "__main__":
     script = Script()
     # scanned_params_dict = script.load_scanned_parameters()
     # list_of_experiments = script.build_list_of_experiments(scanned_params_dict)
-    script.main()
+    script.test_sequence()
+    script.start_sequence()
 

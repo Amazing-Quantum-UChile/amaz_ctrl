@@ -9,6 +9,7 @@ from amaz_ctrl.scripts.subscripts.laser import Laser
 from amaz_ctrl.scripts.subscripts.spectrum_anal_rigol import SpectrumAnalyzerRigol
 from amaz_ctrl.scripts.subscripts.scope_rigol2202A import ScopeRigol2202A
 from amaz_ctrl.scripts.subscripts.scope_rigolDS1104 import ScopeRigolDS1104
+from amaz_ctrl.scripts.subscripts.powermeter_thorlabs import PowerMeterThorlabsPM16
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import pyvisa
@@ -79,18 +80,20 @@ class Script(AmazingScript):
         ## -- Rigol Scope 2202A (lockin scope) --
         ##################
         self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
-        
 
+        ##################
+        ## Thorlabs Power Meter
+        ##################
+        self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
 
-
+    
 
     def connect_sensors(self):
-        log.info("Setting up sensors...")
+        self.power_meter.open()
 
-        
-        # ip = "169.254.205.155"
-        # self.scope = rm.open_resource(f"TCPIP0::{ip}::INSTR")
-        log.info("Sensors ready")
+    def disconnect_sensors(self):
+        self.power_meter.close()
+
 
 
 
@@ -114,26 +117,9 @@ class Script(AmazingScript):
         result["U(Gamma) (kHz)"] = perr[2] *1000
         error = np.sum((lorentzian(freq, *popt)-ampli)**2)
         result["Fit error"] =error
-
-
-        
-
-        # if random.random()<0.03:
-        #     fig, ax = plt.subplots()
-        #     ax.plot(freq, ampli,label = "exp",color = "C0", alpha = .7 )
-        #     ax.plot(freq[mask],ampli[mask],label = "exp",color = "C1", alpha = .7 )
-        #     ax.plot(freq, lorentzian(freq, *popt),
-        #             "--", label = r"$\Gamma=${:.0f} kHz".format(1000*popt[2]), color = "black",)
-        #     ax.set_xlabel("Frequency (MHz)")
-
-        #     ax.set_ylabel("Power (V)")
-        #     ax.legend()
-        #     fig.savefig(self.run_prefix+"plot.png")
-        #     plt.close()
         return result
     
-    def disconnect_sensors(self):
-        log.info("... Disconnected !")
+   
 
 
     def get_squeezing(self, result:dict):
@@ -174,7 +160,6 @@ class Script(AmazingScript):
         measured_sqz=10*np.log10(noise_power / shot_noise_watts)
         result["Squeezing (dB)"] = measured_sqz
         result["Noise Power (dB)"] = WattstodBm(noise_power)
-
         return result
 
     def acquire(self)->dict:
@@ -187,21 +172,6 @@ class Script(AmazingScript):
         result["Power before 2km fiber (V)"] =float(np.mean(volt))
         volt = self.scope_rigol4.get_voltage_trace(3)
         result["Seed power (V)"] =float(np.mean(volt))
-
-        # time.sleep(2.)
-        # freq, ampli = self.sa_rigol.get_spectrum()
-
-        # t, probe  = self.scope_rigol2.get_trace(channel = 1)
-        # t, conj  = self.scope_rigol2.get_trace(channel = 2)
-        
-
-        # idx = np.argmin(np.abs(freq-1.5))
-        # result["Noise power"] = ampli[idx]
-        # result["Probe"] = np.mean(probe)
-        # result["Conjugate"] = np.mean(conj)
-
-        # 
-            
         return result
     
     def on_experiment_about_to_start(self):

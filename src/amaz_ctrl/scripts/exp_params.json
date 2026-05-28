@@ -5,7 +5,7 @@
     "laser Rigol DSG830 LAN": "172.17.55.113",
     "laser Rigol DSG815 LAN": "172.17.55.60",
     "Rb cell temperature (°C)": 128.0,
-    "No of realizations": 2000,
+    "No of realizations": 5,
     "Type of experiment": "squeezing",
     "tags": "squeezing, Rb cell, four-wave mixing",
     "authors": "Victor",

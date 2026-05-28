@@ -60,7 +60,7 @@ class AmazingScript():
     _cached_data = collections.deque()
     _cached_data_locker = threading.Lock()
     _author_list = ["bastian", "carlos", "carla", "victor", "fabian", "andrea", "nikolas", "diego", "vicenzo"]
-    connected_logs = ["SCRIPT", "SUBSCRIPT", "DEVICE", "DEV"]
+    connected_logs = ["SCRIPT", "SUBSCRIPT", "DEVICE", "DEV", "INSTR"]
     
     def __init__(self, 
                  exp_params_dir: str = None,
@@ -88,22 +88,38 @@ class AmazingScript():
 
 
     def main(self):
+        self.start_new_protocol()
+
+    def test_sequence(self):
+        self.start_new_protocol(is_a_test = True)
+
+    def start_new_protocol(self, is_a_test = False):
+        """this function starts a new protocole (can be a single experiment or a sequence of experiments) in a new folder."""
+        #-. Load Data and experiment parameters
+        self.load_exp_param() # update the experiment parameters
+        #-. Create data directory and save current scripts
+        self.create_sequence_folder(is_a_test=is_a_test)
+        self.aggregate_sequence_metadata()
+        self.save_scripts()
+        ## Reset the number of experiments
+        self._i_exp = -1
         self.start_sequence()
 
 
     def start_sequence(self):
-        self.stop_event.clear()
+        """starts a sequence of experiment (or a single experiment if the list is empty)."""
+        print("Hello")
         time_start_seq = datetime.now()
-        #-. Load Data and experiment parameters
-        self.load_exp_param() # update the experiment parameters
+        self.stop_event.clear()
         scanned_params_dict = self.load_scanned_parameters()
         list_of_experiments = self.build_list_of_experiments(scanned_params_dict)
-        #-. Create data directory and save current scripts
-        self.create_sequence_folder()
-        self.aggregate_sequence_metadata()
-        self.save_scripts()
         #-. Start sequence
         self._on_sequence_about_to_start()
+        no_of_exp =len(list_of_experiments)
+
+        ## -- Note that i_exp does not match necesarrliy self._i_exp. 
+        # For exemple, this is the case when we run a sequence in a 
+        # directory where there are already
         for i_exp, seq_update in enumerate(list_of_experiments):
             if self.stop_event.is_set(): 
                 break
@@ -114,19 +130,18 @@ class AmazingScript():
                 self._exp_params[key]=elem
             nruns = self._exp_params["No of realizations"]
             self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._seq_number} [{nruns} realizations].")
-            self.start_experiment(i_exp=i_exp)
+            self.start_experiment()
         self.on_sequence_about_to_end()
         if self.stop_event.is_set():
             status = "stopped"
         else: status = "finished"
         duration = datetime.now() - time_start_seq
         minutes, seconds = divmod(int(duration.total_seconds()), 60)
-        self.log.info(f"Sequence {self._seq_number} {status} after {minutes}min {seconds}s.")
+        self.log.info(f"Sequence {self._seq_number}.{self._i_exp +1 - no_of_exp}-{self._i_exp} {status} after {minutes}min {seconds}s.")
 
-    def start_experiment(self, i_exp):
-        self._i_exp = i_exp
+    def start_experiment(self):
+        self._i_exp += 1
         self._exp_dir = self.create_experiment_folder()
-        
         self._prepare_experiment()
         self._on_experiment_about_to_start()
         self._connect_sensors()
@@ -145,7 +160,7 @@ class AmazingScript():
             run_result = self._acquire()
             run_result["Run No"] = j_run
             run_result["Run ID"] = run_id
-            run_result["Exp No"] = i_exp
+            run_result["Exp No"] = self._i_exp
             run_result["Exp ID"] = exp_id
             run_result["Seq No"] = self._seq_number
             run_result["Seq ID"] = self.seq_id
@@ -154,27 +169,27 @@ class AmazingScript():
             run_result_list.append(run_result)
             if (j_run+1)%100==0:
                 ## temporary save experimental reults every 100 runs
-                self.save_experiment_result(i_exp=i_exp)
+                self.save_experiment_result()
                 self.experiment_result = pd.DataFrame(run_result_list)
         self._j_run = None
         self.disconnect_sensors()
         self._sensors_are_connected = False
         self.experiment_result = pd.DataFrame(run_result_list)
         self._on_experiment_about_to_end()
-        self.save_experiment_result(i_exp=i_exp)
-        self._i_exp, self._exp_dir = None, None
+        self.save_experiment_result()
 
-    def save_experiment_result(self, i_exp):
-        self.log.info("Experimental Resuld data saved.")
+
+    def save_experiment_result(self):
+        self.log.info("Saving Experimental results.")
         ## save results and exp. parameter
         self.experiment_result.to_csv(
             os.path.join(
                 self.seq_directory,
-                f"{i_exp:03}_result.csv" )
+                f"{self._i_exp:03}_result.csv" )
                 )
         with open(os.path.join(
                 self.seq_directory,
-                f"{i_exp:03}_exp_params.json"),
+                f"{self._i_exp:03}_exp_params.json"),
                   "w", encoding='utf-8') as f:
             json.dump(self._exp_params, f,indent=4 )
         
@@ -278,12 +293,12 @@ class AmazingScript():
         self.log.info("Request to stop the experiment...")
         self.stop_event.set()
 
-    def create_sequence_folder(self):
+    def create_sequence_folder(self, is_a_test = False):
         """creates the sequence folder. The sequence folder is a string of an integer i.e. '005' if this is the fifvth sequence of the day.
         The base directory is the data_root_dir argument passed to the AmazingScript class.
 
         Directory strucure:
-        BASE_DIR/YYYY/MM/DD
+        BASE_DIR/YYYY/weekNo
                         |- 001
                         |- 002
                         ...
@@ -292,12 +307,24 @@ class AmazingScript():
         now = datetime.now()
         ## Sequence ID is defined as the time since the Amazing lab inauguration (in seconds)
         self.seq_id = int((now - self._zero_time).total_seconds())
-        day_dir = os.path.join(self.data_root_dir, 
-                               now.strftime("%Y"),
-                               now.strftime("%m"),
-                               now.strftime("%d"))
+        # day_dir = os.path.join(self.data_root_dir, 
+        #                        now.strftime("%Y"),
+        #                        now.strftime("%m"),
+        #                        now.strftime("%d"))
+        day_dir = os.path.join(self.data_root_dir,
+                               now.strftime("%Y"), 
+                               f"week{now.isocalendar().week:02}")
         os.makedirs(day_dir, exist_ok=True)
         self._day_dir = day_dir
+        ### If the 
+        if is_a_test:
+            self._seq_number = 1
+            self._seq_dir = os.path.join(self.data_root_dir,"tmp",
+                                         f"{self._seq_number:03}")
+            os.makedirs(self._seq_dir, exist_ok=True)
+            self.log.info(f"Sequence directory created in {self._seq_dir}")
+            return
+        
         ## We now list all folders of the day to check the number of the 
         # last sequence and set it to the new one
         day_dir_elements = os.listdir(day_dir)
@@ -324,9 +351,9 @@ class AmazingScript():
             sequence_directory = f"{self._seq_number:03}"
         ## Set seq_dir to total path:
         self._seq_dir = os.path.join(day_dir, f"{self._seq_number:03}")
-        self.log.info(f"Sequence directory created in {self._seq_dir}")
         os.makedirs(self._seq_dir, exist_ok=True)
-
+        self.log.info(f"Sequence directory created in {self._seq_dir}")
+       
     def create_experiment_folder(self)->str:
         exp_dir = os.path.join(self._seq_dir,  f"{self._i_exp:03}")
         os.makedirs(exp_dir, exist_ok=True)
@@ -511,7 +538,7 @@ class AmazingScript():
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the prepare_experiment method of the Script {self._script_fn}."
             self.log.critical(msg)
-            self.log.warning("Stopping the acquisition because of this critical error.")
+            self.log.warning("Stopping the acquisition because of this critical error.", exc_info=True)
             self.stop_acquisition()
             ## we raise the error to show the problem
             raise 
@@ -522,12 +549,13 @@ class AmazingScript():
             if type(run_result)!=dict:
                 msg="TypeError: The method acquire of the Script {name} does not " \
                 "return a dictionary. ".format(name=self._script_fn)+self._script_require_info
-                self.log.error(msg)
+                self.log.error(msg, exc_info=True)
                 run_result = {}
             return run_result
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the acquire method of the Script {self._script_fn}."
             self.log.critical(msg, exc_info=True)
+            self.stop_acquisition()
             return {}
 
     def _connect_sensors(self):
@@ -535,14 +563,14 @@ class AmazingScript():
             self.connect_sensors()
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the connect_sensors method of the Script {self._script_fn}."
-            self.log.error(msg)
+            self.log.error(msg, exc_info=True)
 
     def _disconnect_sensors(self):
         try:
             self.disconnect_sensors()
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the disconnect_sensors method of the Script {self._script_fn}."
-            self.log.error(msg)
+            self.log.error(msg, exc_info=True)
 
 
     def _on_experiment_about_to_start(self):
@@ -550,28 +578,28 @@ class AmazingScript():
             self.on_experiment_about_to_start()
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the on_experiment_about_to_start method of the Script {self._script_fn}."
-            self.log.error(msg)
+            self.log.error(msg, exc_info=True)
 
     def _on_experiment_about_to_end(self):
         try:
             self.on_experiment_about_to_end()
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the on_experiment_about_to_end method of the Script {self._script_fn}."
-            self.log.error(msg)
+            self.log.error(msg, exc_info=True)
 
     def _on_sequence_about_to_start(self):
         try:
             self.on_sequence_about_to_start()
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the on_sequence_about_to_start method of the Script {self._script_fn}."
-            self.log.error(msg)
+            self.log.error(msg, exc_info=True)
 
     def _on_sequence_about_to_end(self):
         try:
             self.on_sequence_about_to_end()
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the on_sequence_about_to_end method of the Script {self._script_fn}."
-            self.log.error(msg)
+            self.log.error(msg, exc_info=True)
 
     ###############################################################
     ######## FUNCTIONS TO BE REDEFINED IN DAUGHTER CLASS ##########
@@ -580,7 +608,7 @@ class AmazingScript():
             
     def prepare_experiment(self):
         msg="AttributeError: The Script {name} does not have a " \
-        "'prepare_experiment' method. ".format(name=inspect.getfile(self.__class__))+self._script_require_info
+        "'prepare_experiment' method. ".format(name=inspect.getfile(self.__class__)) + self._script_require_info
         self.log.error(msg)
         # raise AttributeError(msg)
 

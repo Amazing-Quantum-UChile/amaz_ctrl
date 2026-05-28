@@ -88,7 +88,7 @@ class Script(AmazingScript):
             self.log.error(f"Failed to detect Thorlabs devices: {e}.")
             return 
         if device_count == 0 :
-            self.log.info("No Thorlabs device was recognized. Make sure that the Thorlans Optical Power Monitor is closed.")
+            self.log.info("No Thorlabs device was recognized. Make sure that the Thorlabs Optical Power Monitor is closed.")
             return
         self.log.info(f"Number of Thorlab device identified: {device_count}")
         for i in range(device_count):
