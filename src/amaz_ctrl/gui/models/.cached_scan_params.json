@@ -14,6 +14,16 @@
         "stop": 0.0,
         "steps": 0
     },
+    "laser Rigol DSG830 LAN": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "laser Rigol DSG815 LAN": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
     "Rb cell temperature (°C)": {
         "start": 0.0,
         "stop": 9.0,
@@ -95,6 +105,106 @@
         "steps": 10
     },
     "SA Agil attenuation (dB)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Rigol VISA": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "SA Rigol freq center (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Rigol freq span (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Rigol RBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Rigol VBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Rigol sweep time (s)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Scope Rigol2 VISA": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 VISA": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch1": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch1 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch1 range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Scope Rigol4 ch2": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch2 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch2 range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Scope Rigol4 ch3": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch3 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch3 range (V)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Scope Rigol4 ch4": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch4 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Scope Rigol4 ch4 range (V)": {
         "start": 0.0,
         "stop": 9.0,
         "steps": 10

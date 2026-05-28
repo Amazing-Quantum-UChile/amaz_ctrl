@@ -172,7 +172,7 @@ class PlotUnit(QWidget):
         if not (col_x in df.columns and col_y in df.columns):
             return
         plot_by = self.control_layout["color"]["combo"].currentText()
-        
+        df = df.sort_values(by = col_x)
         if plot_by == "None":
             num_of_plots=1
         else:

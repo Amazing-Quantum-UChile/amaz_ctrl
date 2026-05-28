@@ -26,10 +26,10 @@ this file implements the ScriptServer class which handles the RUN, STOP and LOAD
 '''
 from amaz_ctrl.tools.amaz_exception import ExperimentIsRunning, NoScriptToRun
 from amaz_ctrl.server.amaz_server import AmazingServer
-import importlib, sys, random
+import importlib, sys, random,logging
 import Pyro5.api
 import threading, os, datetime
-from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out
+from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out, PseudoConsoleToLogger
 import pandas as pd
 class ScriptServer(AmazingServer):
     _script_class = "Script" #the name of the class we import
@@ -50,6 +50,12 @@ class ScriptServer(AmazingServer):
             log_level=log_level,
             **kwargs
             )
+        ## We also connect the print in the console to what is logged on the terminal
+        self.console_converter = PseudoConsoleToLogger()
+        connect_logger_to_call_out(self.console_converter.log, self._add_log)
+        self.console_converter.log.info("Printed messages in terminal are transferred.")
+        sys.stdout = self.console_converter
+        # sys.stderr = self.console_converter
 
     ###################################################################
     ##########################  Properties   ##########################
@@ -101,7 +107,15 @@ class ScriptServer(AmazingServer):
             self.script = class_script()
 
             ## Connect logs of the Script to add them to the Server Log collection
-            connect_logger_to_call_out(self.script.log, self._add_log)
+            try:
+                for log_name in self.script.connected_logs:
+                    local_log = logging.getLogger(log_name)
+                    connect_logger_to_call_out(local_log, self._add_log)
+                
+            except Exception as e:
+                self.log.error("The bridge between the script log failed to instanciate.")
+
+            
             self.log.info(f"Script '{script_name}´ successfully uploaded.")
 
 
@@ -154,6 +168,7 @@ class ScriptServer(AmazingServer):
             self.log.error(msg)
             raise ExperimentIsRunning(msg)
         self.log.info(f"Running  {self._loaded_file} which was lastly modified at {self._script_last_modified}.")
+        
         self._thread_running = threading.Thread(target=self.script.main)
         self._thread_running.start()
 

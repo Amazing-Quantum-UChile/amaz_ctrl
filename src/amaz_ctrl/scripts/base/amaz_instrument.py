@@ -2,17 +2,25 @@ from amaz_ctrl.tools.amaz_logs import set_console_log
 import logging
 class AmazingInstrument():
     _params ={}
-    _def_params ={}
-    def __init__(self, log_level="INFO"):
+    def_params ={}
+    instr = None
+    
+    def __init__(self,params, log_level="INFO"):
         ## Set up logs
         LOG_NAME = "INSTR"
         self.log = logging.getLogger(LOG_NAME)
         set_console_log(logger_name = LOG_NAME, log_level=log_level)
+        self.params = params
+        self.connect()
+
+    def connect(self):
+        self.log.error(f"The Device {self.__class__.__name__} does not have a connect function.")
+
         
     @property
     def params(self):
         return self._params
-    
+
     @params.setter
     def params(self, params:dict):
         self._params = params
@@ -24,7 +32,6 @@ class AmazingInstrument():
                 )
                 self._params[key] = elem
 
-    
     def get_param(self, key):
         if key in self.params:
             return self.params[key]
@@ -36,7 +43,21 @@ class AmazingInstrument():
         else:
             self.log.error(f"Instrument {self.__class__.__name__} does not find the parameter {key} in its parameter dictionary, including the default one. Please fix me.")
             return None
-        
+
+
+    def write(self, cmd:str):
+        """Write command to instrument"""
+        if self.instr is None:
+            self.log.warning(f"No connexion to {self.__class__.__name__}. Trying to connect.")
+            self.connect()
+        self.instr.write(cmd)
+
+    def query(self, cmd:str):
+        """Query to instrument"""
+        if self.instr is None:
+            self.log.warning(f"No connexion to {self.__class__.__name__}. Trying to connect.")
+            self.connect()
+        return self.instr.query(cmd)
 
 # %% Tests 
 if __name__=="__main__":

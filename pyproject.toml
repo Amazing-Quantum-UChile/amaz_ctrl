@@ -6,7 +6,7 @@ authors = [
     {name = "Victor",email = "victor.gondret@posteo.net"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "numpy (>=2.4.4,<3.0.0)",
     "pandas (>=3.0.2,<4.0.0)",
@@ -19,6 +19,7 @@ dependencies = [
     "pyvisa (>=1.16.2,<2.0.0)",
     "matplotlib (>=3.10.9,<4.0.0)",
     "scipy (>=1.17.1,<2.0.0)",
+    "pythonnet (>=3.1.0,<4.0.0)",
    
 ]
 

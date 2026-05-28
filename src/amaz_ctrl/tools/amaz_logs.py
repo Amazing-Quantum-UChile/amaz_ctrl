@@ -81,3 +81,37 @@ class InternalBufferHandler(logging.Handler):
         self.call_out_fn(msg, record.levelname)
 
 
+import logging
+
+class PseudoConsoleToLogger:
+    """Redirects standard output streams (like print statements) to a Python logger,
+
+    skipping messages that already begin with designated script prefixes.
+    """
+    def __init__(self):
+        logger_name = "CONSOLE"
+        log_level = "DEBUG"
+        self.log = logging.getLogger(logger_name)
+        # Convert string level (e.g., "INFO") to the numeric logging level (20)
+        self.level = getattr(logging, log_level.upper(), logging.INFO)
+        self.log.setLevel("DEBUG") 
+        set_console_log(logger_name,log_level )    
+
+
+    def write(self, message: str) -> None:
+        """Intercepts the written text and routes it to the logger
+        """
+        clean_message = message.strip()
+        # Avoid logging empty lines/newlines
+        if not clean_message:  
+            return
+        # Filtering strategy: ignore if it already comes from your log framework
+        # if clean_message.startswith("\x1b[") or clean_message.startswith("CONSOLE:"):
+        #     return  # Skip it, it's already a processed log message
+            
+        self.log.log(self.level, message.rstrip())
+            
+
+    def flush(self) -> None:
+        """Required for stream compatibility, prevents buffer errors."""
+        pass

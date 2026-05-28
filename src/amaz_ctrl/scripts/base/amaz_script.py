@@ -60,7 +60,7 @@ class AmazingScript():
     _cached_data = collections.deque()
     _cached_data_locker = threading.Lock()
     _author_list = ["bastian", "carlos", "carla", "victor", "fabian", "andrea", "nikolas", "diego", "vicenzo"]
-    
+    connected_logs = ["SCRIPT", "SUBSCRIPT", "DEVICE", "DEV"]
     
     def __init__(self, 
                  exp_params_dir: str = None,
@@ -152,11 +152,20 @@ class AmazingScript():
             run_result["Time"] = now
             self.add_result_to_cached_data(run_result)
             run_result_list.append(run_result)
+            if (j_run+1)%100==0:
+                ## temporary save experimental reults every 100 runs
+                self.save_experiment_result(i_exp=i_exp)
+                self.experiment_result = pd.DataFrame(run_result_list)
         self._j_run = None
         self.disconnect_sensors()
         self._sensors_are_connected = False
         self.experiment_result = pd.DataFrame(run_result_list)
         self._on_experiment_about_to_end()
+        self.save_experiment_result(i_exp=i_exp)
+        self._i_exp, self._exp_dir = None, None
+
+    def save_experiment_result(self, i_exp):
+        self.log.info("Experimental Resuld data saved.")
         ## save results and exp. parameter
         self.experiment_result.to_csv(
             os.path.join(
@@ -166,9 +175,9 @@ class AmazingScript():
         with open(os.path.join(
                 self.seq_directory,
                 f"{i_exp:03}_exp_params.json"),
-                  "w") as f:
-            json.dump(self._exp_params, f, )
-        self._i_exp, self._exp_dir = None, None
+                  "w", encoding='utf-8') as f:
+            json.dump(self._exp_params, f,indent=4 )
+        
 
     def load_exp_param(self):
         """load the exp_params dictionary to set replace the exp_params argument."""
@@ -424,7 +433,7 @@ class AmazingScript():
             with open(os.path.join(
                     self.seq_directory,
                     f".metadata.json"),
-                    "w") as f:
+                    "w",  encoding='utf-8') as f:
                 json.dump(metadata, f, )
             ## 2. Load metadata of the day directory
             meta_dayta_fname = os.path.join(self._day_dir, f".metadata.json")
@@ -518,7 +527,7 @@ class AmazingScript():
             return run_result
         except Exception as e:
             msg=f"{type(e).__name__}:{e}. This error was caught in the acquire method of the Script {self._script_fn}."
-            self.log.critical(msg)
+            self.log.critical(msg, exc_info=True)
             return {}
 
     def _connect_sensors(self):

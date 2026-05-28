@@ -27,9 +27,8 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
 
-    def set_params(self, params={}):
-        self.params = params
-        self.connect()
+    def set_params(self):
+        
         self.instr.write(f"SENS:FREQ:CENT {self.params['SA Agil freq center (MHz)']} MHz")
         self.instr.write(f"SENS:FREQ:SPAN {self.params['SA Agil freq span (MHz)']} MHz")
         self.instr.write("SENS:BAND:RES:AUTO OFF")
