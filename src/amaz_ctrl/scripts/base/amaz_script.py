@@ -53,8 +53,8 @@ class AmazingScript():
     _sensors_are_connected = False
     _zero_time =datetime(2025, 1, 17, 14) ## the zero time of the quantum lab
     _exp_dir = None
-    _seq_number = None
-    _seq_dir = None
+    _proto_number = None
+    _proto_dir = None
     _i_exp = None
     _j_run = None
     _cached_data = collections.deque()
@@ -87,11 +87,17 @@ class AmazingScript():
         self._check_data_dir(self.data_root_dir)
 
 
-    def main(self):
-        self.start_new_protocol()
-
-    def test_sequence(self):
-        self.start_new_protocol(is_a_test = True)
+    def main(self,script_options = "Default"):
+        if (script_options =="Run Protocol") or (script_options=="Default"):
+            self.start_new_protocol(is_a_test = False)
+        elif script_options =="Run Test":
+            self.start_new_protocol(is_a_test = True)
+            self._i_exp = None
+        elif script_options =="Run Sequence":
+            self.start_sequence()
+        else:
+            self.log.warning(f"The script option '{script_options}' was not recognized. Launching a new protocol.")
+            self.start_new_protocol(is_a_test = False)
 
     def start_new_protocol(self, is_a_test = False):
         """this function starts a new protocole (can be a single experiment or a sequence of experiments) in a new folder."""
@@ -100,7 +106,7 @@ class AmazingScript():
         #-. Create data directory and save current scripts
         self.create_sequence_folder(is_a_test=is_a_test)
         self.aggregate_sequence_metadata()
-        self.save_scripts()
+        self.save_scripts(quiete_warning = is_a_test)
         ## Reset the number of experiments
         self._i_exp = -1
         self.start_sequence()
@@ -108,15 +114,19 @@ class AmazingScript():
 
     def start_sequence(self):
         """starts a sequence of experiment (or a single experiment if the list is empty)."""
-        print("Hello")
+        if self._i_exp is None:
+            self.log.error("Cannot aggregate this sequence of experiment because no protocol was saved. Please start a new protocol to run this sequence.")
+            return
+        
         time_start_seq = datetime.now()
         self.stop_event.clear()
         scanned_params_dict = self.load_scanned_parameters()
         list_of_experiments = self.build_list_of_experiments(scanned_params_dict)
         #-. Start sequence
         self._on_sequence_about_to_start()
+        
         no_of_exp =len(list_of_experiments)
-
+        self.log.info(f"Starting a sequence of {no_of_exp} experiments as part as protocol {self.proto_number}. Saving data in {self.proto_directory}.")
         ## -- Note that i_exp does not match necesarrliy self._i_exp. 
         # For exemple, this is the case when we run a sequence in a 
         # directory where there are already
@@ -129,7 +139,7 @@ class AmazingScript():
             for key, elem in seq_update.items():
                 self._exp_params[key]=elem
             nruns = self._exp_params["No of realizations"]
-            self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._seq_number} [{nruns} realizations].")
+            self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._proto_number} [{nruns} realizations].")
             self.start_experiment()
         self.on_sequence_about_to_end()
         if self.stop_event.is_set():
@@ -137,7 +147,7 @@ class AmazingScript():
         else: status = "finished"
         duration = datetime.now() - time_start_seq
         minutes, seconds = divmod(int(duration.total_seconds()), 60)
-        self.log.info(f"Sequence {self._seq_number}.{self._i_exp +1 - no_of_exp}-{self._i_exp} {status} after {minutes}min {seconds}s.")
+        self.log.info(f"Sequence {self._proto_number}.{self._i_exp +1 - no_of_exp}-{self._i_exp} {status} after {minutes}min {seconds}s.")
 
     def start_experiment(self):
         self._i_exp += 1
@@ -162,15 +172,15 @@ class AmazingScript():
             run_result["Run ID"] = run_id
             run_result["Exp No"] = self._i_exp
             run_result["Exp ID"] = exp_id
-            run_result["Seq No"] = self._seq_number
+            run_result["Seq No"] = self._proto_number
             run_result["Seq ID"] = self.seq_id
             run_result["Time"] = now
             self.add_result_to_cached_data(run_result)
             run_result_list.append(run_result)
             if (j_run+1)%100==0:
                 ## temporary save experimental reults every 100 runs
-                self.save_experiment_result()
                 self.experiment_result = pd.DataFrame(run_result_list)
+                self.save_experiment_result()
         self._j_run = None
         self.disconnect_sensors()
         self._sensors_are_connected = False
@@ -184,11 +194,11 @@ class AmazingScript():
         ## save results and exp. parameter
         self.experiment_result.to_csv(
             os.path.join(
-                self.seq_directory,
+                self.proto_directory,
                 f"{self._i_exp:03}_result.csv" )
                 )
         with open(os.path.join(
-                self.seq_directory,
+                self.proto_directory,
                 f"{self._i_exp:03}_exp_params.json"),
                   "w", encoding='utf-8') as f:
             json.dump(self._exp_params, f,indent=4 )
@@ -318,83 +328,87 @@ class AmazingScript():
         self._day_dir = day_dir
         ### If the 
         if is_a_test:
-            self._seq_number = 1
-            self._seq_dir = os.path.join(self.data_root_dir,"tmp",
-                                         f"{self._seq_number:03}")
-            os.makedirs(self._seq_dir, exist_ok=True)
-            self.log.info(f"Sequence directory created in {self._seq_dir}")
+            self._proto_number = 1
+            self._proto_dir = os.path.join(self.data_root_dir,"tmp",
+                                         f"{self._proto_number:03}")
+            os.makedirs(self._proto_dir, exist_ok=True)
+            self.log.info(f"Protocol directory created in {self._proto_dir}")
             return
-        
+
         ## We now list all folders of the day to check the number of the 
-        # last sequence and set it to the new one
+        # last protocols and set it to the new one
         day_dir_elements = os.listdir(day_dir)
         directories = [elem for elem in day_dir_elements if os.path.isdir(os.path.join(day_dir,elem))]
         if not directories:
-            self._seq_number = 1
+            self._proto_number = 1
         else: ##we try to find what is the last 
             directories.sort(reverse=True)
-            last_seq_number = False ## we use that as a boolean
+            last_proto_number = False ## we use that as a boolean
             for dir in directories:
-                last_seq_num = dir
+                last_proto_num = dir
                 try:
-                    last_seq_num=int(last_seq_num)
+                    last_proto_num=int(last_proto_num)
                 except ValueError:
                     pass
-                if type(last_seq_num)==int:
-                    self._seq_number = last_seq_num+1
+                if type(last_proto_num)==int:
+                    self._proto_number = last_proto_num+1
                     break
 
         ## Last: we check that the directory does not exist yet
-        sequence_directory = f"{self._seq_number:03}"
+        sequence_directory = f"{self._proto_number:03}"
         while sequence_directory in day_dir_elements:
-            self._seq_number +=1
-            sequence_directory = f"{self._seq_number:03}"
-        ## Set seq_dir to total path:
-        self._seq_dir = os.path.join(day_dir, f"{self._seq_number:03}")
-        os.makedirs(self._seq_dir, exist_ok=True)
-        self.log.info(f"Sequence directory created in {self._seq_dir}")
+            self._proto_number +=1
+            sequence_directory = f"{self._proto_number:03}"
+        ## Set proto_dir to total path:
+        self._proto_dir = os.path.join(day_dir, f"{self._proto_number:03}")
+        os.makedirs(self._proto_dir, exist_ok=True)
+        self.log.info(f"Sequence directory created in {self._proto_dir}")
        
     def create_experiment_folder(self)->str:
-        exp_dir = os.path.join(self._seq_dir,  f"{self._i_exp:03}")
+        exp_dir = os.path.join(self._proto_dir,  f"{self._i_exp:03}")
         os.makedirs(exp_dir, exist_ok=True)
         return exp_dir
 
-    def save_scripts(self):
+    def save_scripts(self, quiete_warning=False):
         """this method copy and paste the elements of the script folder into the sequence folder so that the same experiment can be run again.
         
         Details:
         --------
-        We copy the script file (self._script_fn), the experimental parameter files (e.g. exp_params.json, scanned_params.json) and the folders subscripts, base, into the the sequence directory self._seq_dir.
+        We copy the script file (self._script_fn), the experimental parameter files (e.g. exp_params.json, scanned_params.json) and the folders subscripts, base, into the the sequence directory self._proto_dir.
         """
         ## the script file
-        backup_script_dir =  os.path.join(self._seq_dir,  "scripts")
+        backup_script_dir =  os.path.join(self._proto_dir,  "scripts")
         os.makedirs(backup_script_dir, exist_ok=True)
         # Copy the script file
         try:
-            shutil.copy(src=self._script_fn, dst = backup_script_dir)
+            shutil.copy(src=self._script_fn, dst = backup_script_dir, 
+                        )
         except Exception as e:
-                msg = "{t}: {e}. This exception was caught in the save_scripts " \
-                "method while copying the file {fn} onto {backup_script_dir}. ".format(
-                    t=type(e).__name__, 
-                    e=e, 
-                    fn=self._script_fn,
-                    backup_script_dir=backup_script_dir
-                    )
-                self.log.warning(msg)
+                if not quiete_warning:
+                    msg = "{t}: {e}. This exception was caught in the save_scripts " \
+                    "method while copying the file {fn} onto {backup_script_dir}. ".format(
+                        t=type(e).__name__, 
+                        e=e, 
+                        fn=self._script_fn,
+                        backup_script_dir=backup_script_dir
+                        )
+                    
+                    self.log.warning(msg)
 
         for file in ["exp_params.json", "scanned_params.json" ]:
             try:
                  fn = os.path.join(self._exp_params_dir, file )
                  shutil.copy(src=fn, dst = backup_script_dir)
             except Exception as e:
-                msg = "{t}: {e}. This exception was caught in the save_scripts " \
-                "method while copying the file {fn} onto {backup_script_dir}. ".format(
-                    t=type(e).__name__, 
-                    e=e, 
-                    fn=fn,
-                    backup_script_dir=backup_script_dir
-                    )
-                self.log.warning(msg)
+                if not quiete_warning:
+                    msg = "{t}: {e}. This exception was caught in the save_scripts " \
+                    "method while copying the file {fn} onto {backup_script_dir}. ".format(
+                        t=type(e).__name__, 
+                        e=e, 
+                        fn=fn,
+                        backup_script_dir=backup_script_dir
+                        )
+                    self.log.warning(msg)
         self.log.info("Scripts files copied in the sequence directory.")
 
         # Copy the directories: subscripts, base
@@ -403,14 +417,15 @@ class AmazingScript():
                 src_folder =os.path.join(self._script_dir, dir)
                 shutil.copytree(src = src_folder, dst = os.path.join(backup_script_dir, dir ))
             except Exception as e:
-                msg = "{t}: {e}. This exception was caught in the save_scripts " \
-                "method while copying the folder {src_folder} onto {backup_script_dir}. ".format(
-                    t=type(e).__name__, 
-                    e=e, 
-                    src_folder=src_folder,
-                    backup_script_dir=backup_script_dir
-                    )
-                self.log.warning(msg)
+                if not quiete_warning:
+                    msg = "{t}: {e}. This exception was caught in the save_scripts " \
+                    "method while copying the folder {src_folder} onto {backup_script_dir}. ".format(
+                        t=type(e).__name__, 
+                        e=e, 
+                        src_folder=src_folder,
+                        backup_script_dir=backup_script_dir
+                        )
+                    self.log.warning(msg)
 
     def add_result_to_cached_data(self, data:dict):
         """method that add data to the _cached_data collection. This collection is thought to be queried and cleared by the server while a task is running.
@@ -458,7 +473,7 @@ class AmazingScript():
             metadata["authors"] =correct_author_list
             ## 1. We save metadata in the sequence directory
             with open(os.path.join(
-                    self.seq_directory,
+                    self.proto_directory,
                     f".metadata.json"),
                     "w",  encoding='utf-8') as f:
                 json.dump(metadata, f, )
@@ -495,8 +510,12 @@ class AmazingScript():
     ### PROPERTIES AND METHODS FOR THE SCRIPT CLASS ####
     ####################################################
     @property
+    def proto_number(self)->int:
+        return self._proto_number
+    
+    @property
     def seq_number(self)->int:
-        return self._seq_number
+        return self._proto_number
     
     @property
     def exp_params(self)->dict:
@@ -506,8 +525,12 @@ class AmazingScript():
         return self._exp_params
     
     @property
+    def proto_directory(self):
+        return self._proto_dir
+    
+    @property
     def seq_directory(self):
-        return self._seq_dir
+        return self._proto_dir
     
     @property
     def exp_directory(self):
@@ -527,7 +550,7 @@ class AmazingScript():
     
     @property
     def exp_prefix(self):
-        return os.path.join(self._seq_dir, "{:03}_".format(self._i_exp))
+        return os.path.join(self._proto_dir, "{:03}_".format(self._i_exp))
 
     ####################################################
     ### METHODS THAT CALL THE DAUGHTER CLASS METHODS ###

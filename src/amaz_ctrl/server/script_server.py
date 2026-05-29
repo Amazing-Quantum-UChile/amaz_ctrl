@@ -155,7 +155,8 @@ class ScriptServer(AmazingServer):
             self.log.error(msg)
             return
 
-    def _run_script(self):
+    def _run_script(self, **kwargs):
+        print("Here, something")
         ## 1. Checks: script is uploaded? Is already running? Has acquire method?
         if self.script is None:
             msg="No script to run. Please upload a script first."
@@ -169,7 +170,7 @@ class ScriptServer(AmazingServer):
             raise ExperimentIsRunning(msg)
         self.log.info(f"Running  {self._loaded_file} which was lastly modified at {self._script_last_modified}.")
         
-        self._thread_running = threading.Thread(target=self.script.main)
+        self._thread_running = threading.Thread(target=self.script.main, kwargs=kwargs)
         self._thread_running.start()
 
 
@@ -222,8 +223,8 @@ class ScriptServer(AmazingServer):
 
     @Pyro5.api.expose
     @Pyro5.api.oneway
-    def run_script(self):
-        self._run_script()
+    def run_script(self, **kwargs):
+        self._run_script(**kwargs)
         
     
     @Pyro5.api.expose

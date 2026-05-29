@@ -53,7 +53,7 @@ class Script(AmazingScript):
         ##################
         self.log.info("Trying to connect to the Rigol Spetrum Analyzer.")
         self.sa_rigol = SpectrumAnalyzerRigol(params=self.exp_params)
-        # self.sa_rigol.set_params() # connect and set parameters
+        self.sa_rigol.set_params() # connect and set parameters
         ## Wait for the manual trigger
         self.sa_rigol.instr.write(":INITiate:CONTinuous OFF")
         self.log.info("Connected to the Rigol Spectrum analyzer.")
@@ -92,6 +92,9 @@ class Script(AmazingScript):
         self.power_meter.open()
 
     def disconnect_sensors(self):
+        time.sleep(1.)
+        self.power_meter.close()
+        time.sleep(1.)
         self.power_meter.close()
 
 
@@ -102,7 +105,7 @@ class Script(AmazingScript):
         freq, ampli = self.sa_agilent.get_trace()
         p0=[80, np.max(ampli)*0.8, .35, 0 ]
         ## mask 
-        mask = np.abs(freq-80) > 0.03
+        mask = np.abs(freq-80) > 0.015
         popt, pcov = curve_fit(lorentzian,
                                freq[mask],
                                ampli[mask], p0=p0,method="dogbox",
@@ -168,10 +171,17 @@ class Script(AmazingScript):
         result = self.get_squeezing(result)
         self.log.info("...done!")
         result = self.measure_linewidth(result)
-        volt = self.scope_rigol4.get_voltage_trace(1)
-        result["Power before 2km fiber (V)"] =float(np.mean(volt))
-        volt = self.scope_rigol4.get_voltage_trace(3)
-        result["Seed power (V)"] =float(np.mean(volt))
+        ## Other parameter measurements
+        result = self.scope_rigol4.measure(result)
+        result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
+       
+        try:
+            ## calibration done on week 22.
+            result["Seed power (uW)"] = 0.03956*result["Seed power mean (mV)"] - 0.833
+            ## calibration done on week 22.
+            result["Pump power (mW)"] = 19.73*result["Thorlabs power meter (mW)"]-6.74
+        except:
+            self.log.warning("Failed to convert the seed power.", exc_info=True)
         return result
     
     def on_experiment_about_to_start(self):

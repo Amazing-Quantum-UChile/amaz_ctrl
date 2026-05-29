@@ -20,7 +20,13 @@ class ScopeRigolDS1104(AmazingInstrument):
         "Scope Rigol4 ch4 name":"Channel 4",
         "Scope Rigol4 ch4 range (V)":5
         }
+    result = {}
     numb_of_div = 14 # horizontal number of division
+    raw_data = {"ch1":np.zeros(10), 
+                    "ch2":np.zeros(10),
+                    "ch3":np.zeros(10),
+                    "ch4":np.zeros(10),
+                    "time":np.zeros(10)}
 
 
     def connect(self):
@@ -45,16 +51,60 @@ class ScopeRigolDS1104(AmazingInstrument):
     def get_trace(self, channel=1)->tuple[NDArray[np.float64], NDArray[np.float64]]:
         """return the time and voltage of a channel"""
         volts = self.get_voltage_trace(channel)
-        x_inc = float(self.instr.query(":WAV:XINC?"))
-        x_orig = float(self.instr.query(":WAV:XOR?"))
-        num_points = len(volts)
-        x_end = x_orig + (num_points * x_inc)
-        times = np.arange(x_orig, x_end, x_inc)[:num_points]
+        times = self.get_timebase()
         return times, volts
     
+    def get_timebase(self):
+        x_inc = float(self.instr.query(":WAV:XINC?"))
+        x_orig = float(self.instr.query(":WAV:XOR?"))
+        num_points = int(self.instr.query(":WAV:POIN?"))
+        times =x_orig + np.arange(num_points) * x_inc
+        return times
+
     
     def set_single_bus_triggered(self):
         self.instr.write(':TRIGger:MODE EDGE')
         self.instr.write(':TRIGger:EDGe:SOURce BUS')
         self.instr.write(':TRIGger:SWEep NORMal')
         self.instr.write(':SINGle')
+
+    def measure(self, result:dict=None)->dict:
+        if result is None:
+            result = {}
+        self.result = {}
+        self.raw_data["time"] = self.get_timebase()
+        for i in range(1, 5):
+            try:
+                self.measure_channel(i)
+            except Exception as e:
+                self.log.warning(f"Rigol4 Driver failed to measure channel {i}. Error is {e}.", 
+                         exc_info=True)
+        result.update(self.result)
+        return result
+
+    def measure_channel(self, i):
+        if not self.get_param(f"Scope Rigol4 ch{i}"):
+            # return if no measurement required
+            self.raw_data[f"ch{i}"] = np.zeros(len(self.raw_data["time"]))
+            return
+        volts = self.get_voltage_trace(channel = i)
+        self.raw_data[f"ch{i}"] = volts
+        ch_name = self.get_param(f"Scope Rigol4 ch{i} name")
+        if "(" in ch_name and ")" in ch_name:
+            suffix = ""
+        else:
+            suffix =" (mV)" # we add the unit
+        self.result[ch_name + " mean"+ suffix] = float(np.mean(volts)*1000)
+        self.result[ch_name + " std"+ suffix] = float(np.std(volts)*1000)
+
+
+
+
+
+
+
+
+
+
+
+

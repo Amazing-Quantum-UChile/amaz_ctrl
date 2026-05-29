@@ -52,8 +52,9 @@ Methods:
 from PyQt6 import QtCore, QtWidgets
 import time
 class ButtonsWidget(QtWidgets.QScrollArea):
-    button_height = 35
+    button_height = 25
     default_script_name = "main.py"
+    _run_buttons = ["Run Protocol", "Run Test", "Run Sequence"]
 
     def __init__(self, parent, model, geometry):
         super().__init__(parent)
@@ -92,23 +93,52 @@ class ButtonsWidget(QtWidgets.QScrollArea):
 
     ### --  RUN BUTTON  --
     def set_up_run_btn(self):
-        self.btn_run = QtWidgets.QPushButton("Run Script")
-        self.btn_run.setFixedHeight(self.button_height)
-        self.layout.addWidget(self.btn_run, 2, 0, 1, 3)
-        self.btn_run.clicked.connect(self._run_btn_pushed)
+        # def set_up_run_btn(self):
+        self.run_buttons = {}
+        
+        for index, button_name in enumerate(self._run_buttons):
+            # Instantiate our custom class
+            btn = RunButton(
+                button_name=button_name, 
+                callback=self._run_btn_pushed, 
+                parent=self
+            )
+            btn.setFixedHeight(self.button_height)
+            
+            self.layout.addWidget(btn, 2+index, 0, 1, 3)
+            self.run_buttons[button_name] = btn
+        # self.btn_run = QtWidgets.QPushButton("Run Script")
+        # self.btn_run.setFixedHeight(self.button_height)
+        # self.layout.addWidget(self.btn_run, 2, 0, 1, 3)
+        # self.btn_run.clicked.connect(self._run_btn_pushed)
 
-    def _run_btn_pushed(self):
+    def _run_btn_pushed(self, button_name="Default"):
         # self._model.btn_run_pushed()
         self.parent().parent()._save()
-        self._model.server_script_connector.run_script()
+
+        self._model.server_script_connector.run_script(script_options = button_name)
         
 
     ### --  STOP BUTTON  --
     def set_up_stop_btn(self):
         self.btn_stop = QtWidgets.QPushButton("Stop")
         self.btn_stop.setFixedHeight(self.button_height)
-        self.layout.addWidget(self.btn_stop, 3, 0, 1, 3)
+        self.layout.addWidget(self.btn_stop, 2 + len(self._run_buttons), 0, 1, 3)
         self.btn_stop.clicked.connect(self._stop_btn_pushed)
 
     def _stop_btn_pushed(self):
         self._model.server_script_connector.stop()
+
+
+class RunButton(QtWidgets.QPushButton):
+    def __init__(self, button_name, callback, parent=None):
+        super().__init__(button_name, parent)
+        self.button_name = button_name
+        self.callback = callback
+        
+        # Connect Qt's clicked signal directly to our internal method
+        self.clicked.connect(self._on_clicked)
+
+    def _on_clicked(self):
+        # We explicitly forward the button name to the main view's callback
+        self.callback(button_name=self.button_name)

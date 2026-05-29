@@ -151,7 +151,8 @@ class ScriptServerConnector(ServerConnector):
 
         return 
     
-    def run_script(self):
+
+    def run_script(self, script_options = "Default"):
         """this methods calls out the PYRO accessible method run_script of the amaz_ctrl.server.script_server.ScriptServer class"""
         if not self.is_connected:
             self.instanciate_device()
@@ -159,7 +160,7 @@ class ScriptServerConnector(ServerConnector):
             self.log.error(f"{type(self).__name__}:Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
             return 
         try:
-            self._device.run_script()
+            self._device.run_script(script_options = script_options)
             return
         except (CommunicationError, ConnectionClosedError, TimeoutError):
             self.log.info(f"Connection to PYRO server {self._uri} failed. Trying to reconnect...")
@@ -168,7 +169,7 @@ class ScriptServerConnector(ServerConnector):
         if not self.is_connected:
             return
         try:
-            self._device.run_script()
+            self._device.run_script(script_options=script_options)
             return
         except (CommunicationError, ConnectionClosedError, TimeoutError):
             self.log.error(f"{type(self).__name__}:Connection with the ScriptServer {self._uri} impossible. Try to relaunch the ScriptServer or update the URI address.")
