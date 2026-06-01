@@ -28,7 +28,8 @@ Please document your code ;-).
 
 
 import pyvisa
-rm = pyvisa.ResourceManager(r'C:\Windows\System32\visa64.dll')
+rm = pyvisa.ResourceManager()
+
 def get_windows_pyvisa_ressuorce_manager():
     rm = pyvisa.ResourceManager(r'C:\Windows\System32\visa64.dll')
     return rm
