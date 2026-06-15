@@ -50,7 +50,7 @@ Methods:
 """
 
 from PyQt6 import QtCore, QtWidgets
-import time
+import time, os
 class ButtonsWidget(QtWidgets.QScrollArea):
     button_height = 30
     default_script_name = "main.py"
@@ -68,17 +68,70 @@ class ButtonsWidget(QtWidgets.QScrollArea):
         self.layout.setSpacing(5)
 
         ## Set up all buttons
-        self.set_up_script_line()
+        self.set_up_script_combobox()
         self.set_up_upload_btn()
         self.set_up_run_btn()
         self.set_up_stop_btn()
 
-    def set_up_script_line(self):
+    # def set_up_script_line(self):# depreciated
+    #     label = QtWidgets.QLabel("Script:")
+    #     self.layout.addWidget(label, 0, 0, 1, 1)
+    #     self.script_name = QtWidgets.QLineEdit()
+    #     self.script_name.setText(self.default_script_name)
+    #     self.layout.addWidget(self.script_name, 0, 1, 1, 2)
+
+    def set_up_script_combobox(self):
         label = QtWidgets.QLabel("Script:")
         self.layout.addWidget(label, 0, 0, 1, 1)
-        self.script_name = QtWidgets.QLineEdit()
-        self.script_name.setText(self.default_script_name)
-        self.layout.addWidget(self.script_name, 0, 1, 1, 2)
+        
+        # 1. Create the ComboBox (dropdown) instead of LineEdit
+        self.script_combobox = QtWidgets.QComboBox()
+        
+        self.refresh_script_list()
+            
+        self.layout.addWidget(self.script_combobox, 0, 1, 1, 2)
+    def refresh_script_list(self):
+        """Refreshes the items in the combobox while preserving the current selection."""
+        # 1. Remember what was previously selected
+        last_chosen = self.script_combobox.currentText()
+        
+        # 2. Clear the current items
+        self.script_combobox.clear()
+        self.script_combobox.setEnabled(True)
+        
+        # 3. Fetch the updated file list
+        scripts = self._get_available_scripts()
+        
+        if scripts:
+            self.script_combobox.addItems(scripts)
+            
+            # 4. Try to re-select the last chosen script if it still exists
+            if last_chosen in scripts:
+                self.script_combobox.setCurrentText(last_chosen)
+            else:
+                # Fallback to the first item if the old one is gone
+                self.script_combobox.setCurrentIndex(0)
+        else:
+            self.script_combobox.addItem("None")
+            self.script_combobox.setEnabled(False)
+
+    def _get_available_scripts(self):
+        """Helper method to scan the directory for specific extensions."""
+        # Fallback to current directory if _script_dir isn't set/found
+        script_dir = getattr(self._model, 'exp_par_directory', '.') 
+        extensions = getattr(self._model, '_script_ext', ['py'])
+        
+        if not os.path.exists(script_dir):
+            return []
+
+        valid_files = []
+        # List all files in the directory
+        for file in os.listdir(script_dir):
+            # Check if the file ends with any of the extensions in the list
+            if any(file.endswith(f".{ext}") for ext in extensions):
+                valid_files.append(file)
+                
+        return sorted(valid_files)
 
     ### --  UPLOAD BUTTON  --
     def set_up_upload_btn(self):
@@ -90,8 +143,15 @@ class ButtonsWidget(QtWidgets.QScrollArea):
     def _upload_btn_pushed(self):
         """connect the action when the upload button is pushed to 
         the model: we call the load_script function of the ScriptServer."""
-        script_name = self.script_name.text()
+        # script_name = self.script_name.text()
+        script_name = self.script_combobox.currentText()
+        # Don't trigger if it's set to "None"
+        if script_name == "None":
+            self._model.log.error("No script to upload was selected.")
+            return
         self._model.server_script_connector.load_script(script_name)
+
+    
 
     ### --  RUN BUTTON  --
     def set_up_run_btn(self):
