@@ -18,6 +18,7 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
             'SA Agil y div (dB)':20,
             'SA Agil y max (V)': 130e-6,
             "SA Agil attenuation (dB)": 0,
+            "SA Agil Detection Method": "normal",
         }
 
     def connect(self):
@@ -27,8 +28,7 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
 
-    def set_params(self):
-        
+    def set_params(self): 
         self.instr.write(f"SENS:FREQ:CENT {self.params['SA Agil freq center (MHz)']} MHz")
         self.instr.write(f"SENS:FREQ:SPAN {self.params['SA Agil freq span (MHz)']} MHz")
         self.instr.write("SENS:BAND:RES:AUTO OFF")
@@ -36,6 +36,8 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         self.instr.write("SENS:BAND:VID:AUTO OFF")
         self.instr.write(f"SENS:BAND:VID {self.params['SA Agil VBW (kHz)']} kHz")
         ## Set amplitude
+        self.instr.write("INP:ATT 0 dB")
+        
         if self.params["SA Agil y scale"].lower() in "linear":
             self.instr.write("DISP:WIND:TRAC:Y:SPAC LIN")
             self.instr.write("UNIT:POW V")
@@ -52,9 +54,56 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         self.instr.write("INP:ATT:AUTO OFF")
         self.instr.write(f"INP:ATT {self.params['SA Agil attenuation (dB)']} dB")
 
+        self.set_detection_type()
+    def set_detection_type(self, ):
+        """Specifies the detection mode.
+        For each trace interval (bucket), average detection displays the average of all the samples within the interval. 
+        The averaging can be done using two methods: 
+            the power method (RMS) 
+            the video method (Y Axis Units)
+        • Negative peak detection displays the lowest sample taken during the interval being displayed. 
+        • Positive peak detection displays the highest sample taken during the interval being displayed. 
+        • Sample detection displays the sample taken during the interval being displayed, and is used primarily to display noise or noise-like signals. In sample mode, the instantaneous signal value at the present display point is placed into memory. This detection should not be used to make the most accurate amplitude measurement of non noise-like signals. 
+        • Average detection is used when measuring the average value of the amplitude across each trace interval (bucket). The averaging method used by the average detector is set to either video or power as appropriate when the average type is auto coupled. 
+        • Normal detection selects the maximum and minimum video signal values alternately. When selecting Normal detection, “Norm” appears in the upper-left corner.
+        """
+
+        info = [
+          "Negative peak detection displays the lowest sample taken during the interval being displayed. ",
+          "Positive peak detection displays the highest sample taken during the interval being displayed. ",
+          "Sample detection displays the sample taken during the interval being displayed, and is used primarily to display noise or noise-like signals. In sample mode, the instantaneous signal value at the present display point is placed into memory. This detection should not be used to make the most accurate amplitude measurement of non noise-like signals. ",
+          " Average detection is used when measuring the average value of the amplitude across each trace interval (bucket). The averaging method used by the average detector is set to either video (i.e. ) or power as appropriate when the average type is auto coupled. (not recommanded, check the doc) "
+          "RMS average the power (recommanded)",
+           "Normal detection selects the maximum and minimum video signal values alternately. When selecting Normal detection, “Norm” appears in the upper-left corner."
+
+
+        ]
+
+        # self.instr.write("SENS:DET:FUNC:AUTO OFF")
+        user_cmd = self.params["SA Agil Detection Method"].lower()
+        valid_cmd = ["NEGative", "POSitive", "SAMPle", "AVERage", "RMS", "NORMAL"]
+        rec_cmd = []# list of recognized command
+        for cmd in valid_cmd:
+            if user_cmd in cmd.lower():
+                rec_cmd.append(cmd)
+        if len(rec_cmd)==1:
+            cmd = rec_cmd[0]
+            self.instr.write(f"SENS:DET:FUNC {cmd}")
+        else:
+            self.log.warning(f"The detection method of the Agilent scope was not recognized. Setting it to Normal mode. Possible commands are {valid_cmd}. We provide more informations below.")
+            for i, j in zip(info,valid_cmd) :
+                self.log.info(j +" | " + i)
+            self.log.warning("Please look at the previous warning message.")
+            self.instr.write(f"SENS:DET:FUNC NORMAL")
+
+    
+    def get_sweep_time(self)-> float:
+        """return the sweep time of the SA (seconds)"""
+        return float(self.instr.query(':SWE:TIME?'))
+
     def get_trace(self):
         """
-        Returns frequency (MHz) and amplitude (V or dBm depending on instrument setting)
+        Returns frequency (MHz) or time (s) and amplitude (V or dBm depending on instrument setting)
         from a spectrum analyzer trace.
         """
 
@@ -65,13 +114,17 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         # --- Get frequency settings ---
         center = float(self.instr.query("SENS:FREQ:CENT?"))
         span = float(self.instr.query("SENS:FREQ:SPAN?"))
-
-        # --- Build frequency axis ---
-        start_freq = center - span / 2
-        stop_freq = center + span / 2
-        frequencies = np.linspace(start_freq, stop_freq, len(amplitudes))
-
-        # --- Return both ---
+        if span ==0:
+             # --- ZERO SPAN MODE (time trace, not frequency) ---
+            sweep_time = float(self.instr.query("SWE:TIME?"))
+            # time axis
+            frequencies = np.linspace(0, sweep_time, len(amplitudes))
+        else:
+            # --- Build frequency axis ---
+            start_freq = center - span / 2
+            stop_freq = center + span / 2
+            frequencies = np.linspace(start_freq, stop_freq, len(amplitudes))
+        
         return frequencies/1e6, amplitudes
 
 if __name__=="__main__":

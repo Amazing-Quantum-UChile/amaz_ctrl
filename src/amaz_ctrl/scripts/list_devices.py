@@ -29,7 +29,6 @@ class Script(AmazingScript):
     
     def prepare_experiment(self):
         ## List USB Visa device
-        print("SSSSAAAALUUUUUT")
         self.list_USB_devices()
         self.list_thorlabs_devices(show_thorlabs_methods = False)
         return
@@ -128,9 +127,7 @@ class Script(AmazingScript):
 
 
     def acquire(self)->dict:
-        print("SSSSAAAALUUUUUT")
         self.stop_acquisition()
-        a = 1/0
         return {}
 
     

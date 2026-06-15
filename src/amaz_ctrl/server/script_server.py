@@ -205,12 +205,12 @@ class ScriptServer(AmazingServer):
     @Pyro5.api.expose
     @Pyro5.api.oneway
     def upload_script(self, script_name):
-        """_summary_
+        """pyro exposed to update a new script
 
         Parameters
         ----------
-        script_name : _type_
-            _description_
+        script_name : str
+            the name of the script that should be in the script folder.
         """
         try:
             self._upload_script(script_name)

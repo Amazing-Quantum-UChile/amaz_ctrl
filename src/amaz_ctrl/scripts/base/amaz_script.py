@@ -45,7 +45,7 @@ class AmazingScript():
     _scanned_param_fn = "scanned_params.json"
     _script_require_info="\n[Additional information]: Any script that inherits the AmazingScript class requires the following methods. \n" \
     "(1) A prepare_experiment method that is called to prepare actuators and sensor devices. Note that in this method, we should connect and disconnect to all actuators and sensors.\n" \
-    "(2) A connect_sensors method that is called before the acquire method. Sensors stay connected during all the acquisition process.\n" \
+    "(2) A connect_sensors method that is called before the the loop of experiments starts. Sensors stay connected during all the acquisition process.\n" \
     "(3) An acquire method that is called at each realization of the experiment. This method should return a dictionary with the results of the realization.\n" \
     "(4) A disconnect_sensors method that is called once the sequence of experiments is finished or whenever the stop button is pushed."
     _default_exp_params = {"No of realizations":100, "Type of experiment":"undefined"}
@@ -87,16 +87,17 @@ class AmazingScript():
         self._check_data_dir(self.data_root_dir)
 
 
-    def main(self,script_options = "Default"):
-        if (script_options =="Run Protocol") or (script_options=="Default"):
+    def main(self,script_options = "run_test"):
+        """Main function of the code that has three options: run_test, run_protocol and continue_protocol"""
+        if (script_options =="run_protocol"):
             self.start_new_protocol(is_a_test = False)
-        elif script_options =="Run Test":
+        elif script_options =="run_test":
             self.start_new_protocol(is_a_test = True)
             self._i_exp = None
-        elif script_options =="Run Sequence":
+        elif script_options =="continue_protocol":
             self.start_sequence()
         else:
-            self.log.warning(f"The script option '{script_options}' was not recognized. Launching a new protocol.")
+            self.log.warning(f"The script option '{script_options}' was not recognized by the main function of the AmazingScript. By default, we launch a new protocol.")
             self.start_new_protocol(is_a_test = False)
 
     def start_new_protocol(self, is_a_test = False):
@@ -127,6 +128,8 @@ class AmazingScript():
         
         no_of_exp =len(list_of_experiments)
         self.log.info(f"Starting a sequence of {no_of_exp} experiments as part as protocol {self.proto_number}. Saving data in {self.proto_directory}.")
+
+        
         ## -- Note that i_exp does not match necesarrliy self._i_exp. 
         # For exemple, this is the case when we run a sequence in a 
         # directory where there are already
@@ -141,6 +144,7 @@ class AmazingScript():
             nruns = self._exp_params["No of realizations"]
             self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._proto_number} [{nruns} realizations].")
             self.start_experiment()
+        
         self.on_sequence_about_to_end()
         if self.stop_event.is_set():
             status = "stopped"
@@ -156,6 +160,7 @@ class AmazingScript():
         self._on_experiment_about_to_start()
         self._connect_sensors()
         self._sensors_are_connected = True
+        
         ## Set the ID of the Experiment 
         now = datetime.now()
         exp_id = round((now - self._zero_time).total_seconds(), 1)

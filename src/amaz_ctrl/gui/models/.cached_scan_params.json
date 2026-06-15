@@ -84,6 +84,11 @@
         "stop": 9.0,
         "steps": 10
     },
+    "SA Agil Detection Method": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
     "SA Agil y scale": {
         "start": 0.0,
         "stop": 0.0,

@@ -90,14 +90,14 @@ class Script(AmazingScript):
 
     def connect_sensors(self):
         self.power_meter.open()
-
+        return
+    
     def disconnect_sensors(self):
         time.sleep(1.)
         self.power_meter.close()
         time.sleep(1.)
         self.power_meter.close()
-
-
+        return
 
 
     def measure_linewidth(self, result:dict)->dict:
@@ -122,7 +122,14 @@ class Script(AmazingScript):
         result["Fit error"] =error
         return result
     
-   
+    def get_intensity_spectrum(self, result:dict)-> dict:
+        freq, ampli = self.sa_agilent.get_trace()
+        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        df.to_csv(self.run_prefix+"raw.csv")
+        for f in [0.5,1,1.5,2,2.5,3]:#loop over frequencies
+            idx = np.argmin(np.abs(freq-f))
+            result[f"Intensity noise @{f}MHz"]=ampli[idx]
+        return result
 
 
     def get_squeezing(self, result:dict):
@@ -167,10 +174,12 @@ class Script(AmazingScript):
 
     def acquire(self)->dict:
         result={}
-        self.log.info("Reading squeezing...")
-        result = self.get_squeezing(result)
-        self.log.info("...done!")
-        result = self.measure_linewidth(result)
+        # self.log.info("Reading squeezing...")
+        # result = self.get_squeezing(result)
+        # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
+        # result = self.measure_linewidth(result)
+        result = self.get_intensity_spectrum(result)
+
         ## Other parameter measurements
         result = self.scope_rigol4.measure(result)
         result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
@@ -179,7 +188,7 @@ class Script(AmazingScript):
             ## calibration done on week 22.
             result["Seed power (uW)"] = 0.03956*result["Seed power mean (mV)"] - 0.833
             ## calibration done on week 22.
-            result["Pump power (mW)"] = 19.73*result["Thorlabs power meter (mW)"]-6.74
+            # result["Pump power (mW)"] = 19.73*result["Thorlabs power meter (mW)"]-6.74
         except:
             self.log.warning("Failed to convert the seed power.", exc_info=True)
         return result

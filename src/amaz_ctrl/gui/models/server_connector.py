@@ -152,7 +152,7 @@ class ScriptServerConnector(ServerConnector):
         return 
     
 
-    def run_script(self, script_options = "Default"):
+    def run_script(self, script_options = "default"):
         """this methods calls out the PYRO accessible method run_script of the amaz_ctrl.server.script_server.ScriptServer class"""
         if not self.is_connected:
             self.instanciate_device()
