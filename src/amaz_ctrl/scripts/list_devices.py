@@ -1,8 +1,10 @@
 
 from amaz_ctrl.scripts.base.amaz_script import AmazingScript
-import time, os, logging, sys
+import time, os, logging, sys, serial
 import numpy as np
 from amaz_ctrl.tools.misc import get_windows_pyvisa_ressuorce_manager
+from thorlabs_elliptec import ELLx
+
 rm = get_windows_pyvisa_ressuorce_manager()
 
 
@@ -30,6 +32,7 @@ class Script(AmazingScript):
     def prepare_experiment(self):
         ## List USB Visa device
         self.list_USB_devices()
+        self.list_serial_ports()
         self.list_thorlabs_devices(show_thorlabs_methods = False)
         return
     
@@ -54,9 +57,33 @@ class Script(AmazingScript):
             except Exception as e:
                 self.log.info(f"No IDN answer from {dev}. Error is: {e}")
 
+
+    def list_serial_ports(self):
+        """We only list the serials ports using pyserial"""
+        ports = serial.tools.list_ports.comports()
+        self.log.info("### --- Listing Serial Port devices. --- ###")
+        for port in ports:
+            self.log.info(f"Port {port.description} with hardware ID: {port.hwid}, vendor ID (VID): {port.vid}, product ID (PID): {port.pid} and serial number: {port.serial_number}")
+
+
     def list_thorlabs_devices(self, show_thorlabs_methods = False):
         self.log.info("### --- Listing Thorlabs devices. --- ###")
+        self.list_thorlabs_power_detector(show_thorlabs_methods = show_thorlabs_methods)
+        self.list_thorlabs_rotating_mounts()
 
+    def list_thorlabs_rotating_mounts(self):
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            try:
+                stage = ELLx(serial_port = port.device)
+                msg = f"Motorized mount {stage.model_number} (with unit {stage.units}) is available on USB port {port.device}."
+                self.log.info(msg)
+                stage.close()
+            except Exception as e:
+                pass
+
+
+    def list_thorlabs_power_detector(self,  show_thorlabs_methods = False):
         try:
             import clr
         except Exception as e:
@@ -113,6 +140,8 @@ class Script(AmazingScript):
                 self.log.info(f"{manuf_buffer.ToString()} device {model_buffer.ToString()} is {status} with VISA address {addr_buffer.ToString()}")
             except Exception as e:
                 self.log.error(f"Error when looking at Thorlabs device number {i}. Error is {e}.")
+
+   
 
 
 
