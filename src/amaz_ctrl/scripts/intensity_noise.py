@@ -42,6 +42,7 @@ class Script(AmazingScript):
                          log_level=log_level)
 
     def prepare_experiment(self):
+        print("Preparing an experiment.")
         ##################
         ## -- Agilent Spectrum Analyzer
         ##################
@@ -56,59 +57,152 @@ class Script(AmazingScript):
         # self.laser.update_photon_detuning_from_device_frequency()
 
         # ##################
-        # ## -- Rigol Scope 2202A (lockin scope) --
+        # ## -- Rigol Scope 2202A (locking scope) --
         # ##################
         # self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
+        
 
-        ##################
-        ## Thorlabs Power Meter
-        ##################
+        # ##################
+        # ## Thorlabs Power Meter
+        # ##################
         self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
 
     
 
     def connect_sensors(self):
+        
         self.power_meter.open()
         return
     
     def disconnect_sensors(self):
+        # rm.close()
+        
         time.sleep(1.)
         self.power_meter.close()
         time.sleep(1.)
         self.power_meter.close()
         return
 
+
+
+    def start_intensity_spectrum_measurement(self):
+        self.sa_agilent.instr.write(":INITiate:CONTinuous OFF")
+        self.sa_agilent.instr.write("INIT:CONT OFF")
+        self.sa_agilent.instr.write("AVER:COUN 500")
+        self.sa_agilent.instr.write("AVER:STAT ON")
+        self.sa_agilent.instr.write(":INITiate")
+
+    def get_intensity_spectrum(self, result):
+        ## wait a bit so that we are sure the measurement started
+        time.sleep(.3)
+        ## We wait for the device to finish the measurement
+        t = time.time()
+        max_timeout = 50 #seconds
+        timeout = False
+        max_timeout = 50 #seconds
+        timeout = False
+        while not timeout:
+            #This query returns the decimal value of the sum of the bits in the 
+            # Status operation condition register.
+            opc_value = int(self.sa_agilent.instr.query(":STATus:OPERation:CONDition?"))
+            ## Bit 4 gives the measurement status
+            is_still_measuring =(opc_value >> 4) & 1
+            
+            if not is_still_measuring:
+                timeout = True
+                # self.log.info(f"The agilent finished in { int(time.time() - t )}s!")
+            else:
+                time.sleep(1.)
+            if time.time() - t >max_timeout:
+                timeout=True
+                self.log.warning("Timeout from the rigol measurement of the intensity noise...")
+                return result
+        ## the measurement is finished!
+        freq, ampli = self.sa_agilent.get_trace()
+        ### save raw data
+        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        df.to_csv(self.run_prefix+"intensity_raw.csv")
+        ### Now we want to save some raw data for easy analysis
+        if self.exp_params['SA Agil freq span (MHz)'] ==0:
+            return result
+        # we have 1001 frequency measurement, we want 10 of them
+        for idx in [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]:
+            try:
+                f = int(freq[idx])
+                result[f"Intensity noise @{f}MHz"]=ampli[idx]
+            except Exception as e:
+                self.log.error(f"Error in the get intensity spectrum: {e}")
+        return result
+    
     def acquire(self)->dict:
         result={}
-        # self.log.info("Reading squeezing...")
-
-        t = self.sa_agilent.get_sweep_time()
-        # self.log.info(f"Sweep time of the agilent: {t}s")
-        # self.sa_agilent.instr.timeout = 20000 
-        # self.sa_agilent.instr.write("INIT:IMM;*OPC?")
-        # self.sa_agilent.instr.read()
-        # self.sa_agilentinstr.write("INIT:CONT OFF")
-        # self.sa_agilentinstr.write("INIT:IMM")
-        time.sleep(t*2+.2)
-
-        freq, ampli = self.sa_agilent.get_trace()
-        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        self.start_intensity_spectrum_measurement()
         
-        df.to_csv(self.run_prefix+"raw.csv")
-        if self.exp_params['SA Agil freq span (MHz)'] ==0:
-            noise = float(np.sqrt(np.mean(ampli**2)))
-            result["Mean noise"] = noise
-            fr = self.exp_params['SA Agil freq center (MHz)']
-            self.log.info(f"Intensity noise @{fr}MHz: {noise}")
-        else:
-            for f in [0.5,1,1.5,2,2.5,3,4,5,6]:#loop over frequencies
-                idx = np.argmin(np.abs(freq-f))
-                result[f"Intensity noise @{f}MHz"]=ampli[idx]
-            noise = result[f"Intensity noise @3MHz"]
-            self.log.info(f"Intensity noise @3MHz: {noise}")
+        result = self.get_intensity_spectrum(result)
+        pw_th = self.power_meter.get_power()
+        result["Thorlabs power meter (W)"] = pw_th
+        try:
+            result["Thorlabs power meter (W)"] = pw_th * 1000 
+            result["Det10A voltage (mV)"] = 0.785*pw_th * 1000 
+        except Exception as e:
+            self.log.warning("Failed to convert the thorlabs power.", exc_info=True)
+            result["Thorlabs power meter (W)"] = None
+            result["Det10A voltage (mV)"] = None
+
+
+        return result
+        
+    def average_over_traces(self, result = {}):
+        self.sa_agilent.instr.write(":INITiate:CONTinuous OFF")
+        self.sa_agilent.instr.write("INIT:CONT OFF")
+        self.sa_agilent.instr.write("AVER:COUN 500")
+        self.sa_agilent.instr.write("AVER:STAT ON")
+        self.sa_agilent.instr.write(":INITiate")
+        ## wait a bit so that measurement starts
+        time.sleep(.3)
+        
+        t = time.time()
+        max_timeout = 50 #seconds
+        timeout = False
+
+         
+        # scope_results = [self.scope_rigol4.measure()]
+        # thorlabs_power = [ 1000 * self.power_meter.get_power()]
+         
+        while not timeout:
+            #This query returns the decimal value of the sum of the bits in the 
+            # Status operation condition register.
+            opc_value = int(self.sa_agilent.instr.query(":STATus:OPERation:CONDition?"))
+            ## Bit 4 gives the measurement status
+            is_still_measuring =(opc_value >> 4) & 1
+            
+            if not is_still_measuring:
+                timeout = True
+                self.log.info(f"The agilent finished in { int(time.time() - t )}s!")
+            else:
+                time.sleep(1.)
+            if time.time() - t >max_timeout:
+                timeout=True
+                self.log.warning("Timeout from the rigol measurement...")
+
+            # scope_results.append(self.scope_rigol4.measure())
+            # thorlabs_power.append( 1000 * self.power_meter.get_power())
+        # ## Process scope results
+        # # take the mean and the std of each result
+        # columns = list(scope_results[0].keys())
+        # scope_results = pd.DataFrame(scope_results)
+        # self.log.info(f"The number of measured power is {len(scope_results)}")
+        # result = scope_results.mean().to_dict()
+        # res_std = scope_results.std().to_dict()
+        # for key, val in res_std.items():
+        #     result[key+" std"] = val
+        # result["Thorlabs power meter (mW)"] = np.mean(thorlabs_power)
+        # result["Thorlabs power meter std (mW)"] = np.std(thorlabs_power)
+        return result
+        
         ## Other parameter measurements
         # result = self.scope_rigol4.measure(result)
-        result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
+        # result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
        
         try:
             pass

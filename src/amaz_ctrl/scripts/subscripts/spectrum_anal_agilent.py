@@ -2,10 +2,12 @@
 from amaz_ctrl.scripts.base.amaz_instrument import AmazingInstrument
 import pyvisa
 import numpy as np
+import time
 
 rm = pyvisa.ResourceManager()
 
 class SpectrumAnalyzerAgilent(AmazingInstrument):
+    last_trigg = time.time()
     def_params = {
             "SA Agil LAN": "172.17.55.214",
             "SA Agil port": "5025",
@@ -19,6 +21,9 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
             'SA Agil y max (V)': 130e-6,
             "SA Agil attenuation (dB)": 0,
             "SA Agil Detection Method": "normal",
+            "SA Agil Continuous mode": False,
+            "SA Agil Average trace No": 100,
+            "SA Agil timeout (s)":100,
         }
 
     def connect(self):
@@ -36,7 +41,8 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         self.instr.write("SENS:BAND:VID:AUTO OFF")
         self.instr.write(f"SENS:BAND:VID {self.params['SA Agil VBW (kHz)']} kHz")
         ## Set amplitude
-        self.instr.write("INP:ATT 0 dB")
+        self.instr.write(":POWer:ATTenuation:AUTO OFF")
+        self.instr.write(f":POWer:ATTenuation {self.params['SA Agil attenuation (dB)']}")
         
         if self.params["SA Agil y scale"].lower() in "linear":
             self.instr.write("DISP:WIND:TRAC:Y:SPAC LIN")
@@ -50,11 +56,18 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
                 f"DISP:WIND:TRAC:Y:PDIV {self.params['SA Agil y div (dB)']}"
             )
 
-        ## Input atenuation
-        self.instr.write("INP:ATT:AUTO OFF")
-        self.instr.write(f"INP:ATT {self.params['SA Agil attenuation (dB)']} dB")
-
+        ### Set the continueous mode and the average number
+        self.is_continuous = self.get_param("SA Agil Continuous mode")
+        if self.is_continuous:
+            self.instr.write("INIT:CONT ON")
+        else:
+            self.instr.write("INIT:CONT OFF")
+        self.n_average= int(self.get_param("SA Agil Average trace No"))
+        self.instr.write(f"AVER:COUN {self.n_average}")
         self.set_detection_type()
+        self.timeout = self.get_param("SA Agil timeout (s)")
+
+
     def set_detection_type(self, ):
         """Specifies the detection mode.
         For each trace interval (bucket), average detection displays the average of all the samples within the interval. 
@@ -101,16 +114,46 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         """return the sweep time of the SA (seconds)"""
         return float(self.instr.query(':SWE:TIME?'))
 
+
+    def trigg(self):
+        
+        self.instr.write(":INITiate")
+
+    
+
     def get_trace(self):
         """
         Returns frequency (MHz) or time (s) and amplitude (V or dBm depending on instrument setting)
         from a spectrum analyzer trace.
         """
+        ## If the agilent was triggered, we wait that it finished his job
+        if not self.is_continuous:
+            time.sleep(.2)
+        timeout = False
+        t = time.time()
+        while not timeout:
+            #This query returns the decimal value of the sum of the bits in the 
+            # Status operation condition register.
+            opc_value = int(self.instr.query(":STATus:OPERation:CONDition?"))
+            ## Bit 4 gives the measurement status
+            is_still_measuring =(opc_value >> 4) & 1
+            if not is_still_measuring:
+                timeout = True
+            
+            else:
+                time.sleep(1.)
+            if time.time() - t >self.timeout:
+                timeout=True
+                self.log.error("The Agilent Spectrum analyzer did not finished the measurement. Timeout occured.")
+                continue
+            
+            
 
         # --- Get trace data (amplitude only) ---
         trace = self.instr.query("TRAC? TRACE1")
         amplitudes = np.array(trace.split(","), dtype=float)
-
+        if timeout :
+            amplitudes = np.zeros(len(amplitudes))
         # --- Get frequency settings ---
         center = float(self.instr.query("SENS:FREQ:CENT?"))
         span = float(self.instr.query("SENS:FREQ:SPAN?"))

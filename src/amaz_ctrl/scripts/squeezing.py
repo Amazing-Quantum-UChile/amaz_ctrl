@@ -122,16 +122,60 @@ class Script(AmazingScript):
         result["Fit error"] =error
         return result
     
-    def get_intensity_spectrum(self, result:dict)-> dict:
+
+    def start_intensity_spectrum_measurement(self):
+        self.sa_agilent.instr.write(":INITiate:CONTinuous OFF")
+        self.sa_agilent.instr.write("INIT:CONT OFF")
+        self.sa_agilent.instr.write("AVER:COUN 500")
+        self.sa_agilent.instr.write("AVER:STAT ON")
+        self.sa_agilent.instr.write(":INITiate")
+
+    
+
+    def get_intensity_spectrum(self, result):
+        ## wait a bit so that we are sure the measurement started
+        time.sleep(.3)
+        ## We wait for the device to finish the measurement
+        t = time.time()
+        max_timeout = 50 #seconds
+        timeout = False
+        max_timeout = 50 #seconds
+        timeout = False
+        while not timeout:
+            #This query returns the decimal value of the sum of the bits in the 
+            # Status operation condition register.
+            opc_value = int(self.sa_agilent.instr.query(":STATus:OPERation:CONDition?"))
+            ## Bit 4 gives the measurement status
+            is_still_measuring =(opc_value >> 4) & 1
+            
+            if not is_still_measuring:
+                timeout = True
+                # self.log.info(f"The agilent finished in { int(time.time() - t )}s!")
+            else:
+                time.sleep(1.)
+            if time.time() - t >max_timeout:
+                timeout=True
+                self.log.warning("Timeout from the rigol measurement of the intensity noise...")
+                return result
+        ## the measurement is finished!
         freq, ampli = self.sa_agilent.get_trace()
+        ### save raw data
         df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
-        df.to_csv(self.run_prefix+"raw.csv")
-        for f in [0.5,1,1.5,2,2.5,3]:#loop over frequencies
-            idx = np.argmin(np.abs(freq-f))
-            result[f"Intensity noise @{f}MHz"]=ampli[idx]
+        df.to_csv(self.run_prefix+"intensity_raw.csv")
+        ### Now we want to save some raw data for easy analysis
+        if self.exp_params['SA Agil freq span (MHz)'] ==0:
+            return result
+        # we have 1001 frequency measurement, we want 10 of them
+        for idx in [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]:
+            try:
+                f = int(freq[idx])
+                result[f"Intensity noise @{f}MHz"]=ampli[idx]
+            except Exception as e:
+                self.log.error(f"Error in the get intensity spectrum: {e}")
         return result
 
-
+        
+    
     def get_squeezing(self, result:dict):
         """function that reads squeezing from the spectrum analyzer and normalize it with respect to the shot noise using the measured signal from the Rigol scope."""
         
@@ -170,12 +214,15 @@ class Script(AmazingScript):
         measured_sqz=10*np.log10(noise_power / shot_noise_watts)
         result["Squeezing (dB)"] = measured_sqz
         result["Noise Power (dB)"] = WattstodBm(noise_power)
+        if self.j_run % 10 ==0:
+            self.log.info(f"Measured Squeezing: {measured_sqz:.03f} dB")
         return result
 
     def acquire(self)->dict:
         result={}
+        self.start_intensity_spectrum_measurement()
         # self.log.info("Reading squeezing...")
-        # result = self.get_squeezing(result)
+        result = self.get_squeezing(result)
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
         # result = self.measure_linewidth(result)
         result = self.get_intensity_spectrum(result)
@@ -191,6 +238,7 @@ class Script(AmazingScript):
             # result["Pump power (mW)"] = 19.73*result["Thorlabs power meter (mW)"]-6.74
         except:
             self.log.warning("Failed to convert the seed power.", exc_info=True)
+        
         return result
     
     def on_experiment_about_to_start(self):

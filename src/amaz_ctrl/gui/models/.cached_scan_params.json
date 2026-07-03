@@ -114,6 +114,21 @@
         "stop": 9.0,
         "steps": 10
     },
+    "SA Agil Continuous mode": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "SA Agil Average trace No": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Agil timeout (s)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
     "SA Rigol VISA": {
         "start": 0.0,
         "stop": 0.0,
@@ -213,5 +228,45 @@
         "start": 0.0,
         "stop": 9.0,
         "steps": 10
+    },
+    "Additional Parameter 1 value": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Additional Parameter 1 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Additional Parameter 2 value": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Additional Parameter 2 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Additional Parameter 3 value": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Additional Parameter 3 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "Additional Parameter 4 value": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "Additional Parameter 4 name": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
     }
 }

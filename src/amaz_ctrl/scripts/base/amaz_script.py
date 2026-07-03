@@ -103,7 +103,7 @@ class AmazingScript():
     def start_new_protocol(self, is_a_test = False):
         """this function starts a new protocole (can be a single experiment or a sequence of experiments) in a new folder."""
         #-. Load Data and experiment parameters
-        self.load_exp_param() # update the experiment parameters
+        self.load_exp_param() 
         #-. Create data directory and save current scripts
         self.create_sequence_folder(is_a_test=is_a_test)
         self.aggregate_sequence_metadata()
@@ -115,6 +115,7 @@ class AmazingScript():
 
     def start_sequence(self):
         """starts a sequence of experiment (or a single experiment if the list is empty)."""
+        self.load_exp_param() # update the experiment parameters
         if self._i_exp is None:
             self.log.error("Cannot aggregate this sequence of experiment because no protocol was saved. Please start a new protocol to run this sequence.")
             return

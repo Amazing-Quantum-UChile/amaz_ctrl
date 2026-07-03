@@ -32,6 +32,16 @@ class ScopeRigolDS1104(AmazingInstrument):
     def connect(self):
         self.visa_adress =  self.get_param("Scope Rigol4 VISA")
         self.instr = rm.open_resource(self.visa_adress)
+        self.set_parameters()
+        # for i in range(1, 5):
+        #     if self.get_param(f"Scope Rigol4 ch{i}"):
+        #         v_range = self.get_param(f"Scope Rigol4 ch{i} range (V)")
+        #         self.instr.write(f":CHANnel{i}:RANGe {v_range}")
+
+
+    def set_parameters(self):
+        self.instr.write(":WAV:FORM ASCii")
+        self.instr.write(":WAV:MODE NORM")
 
 
     def set_timebase(self, total_time:float):
@@ -39,14 +49,14 @@ class ScopeRigolDS1104(AmazingInstrument):
         """
         self.log.warning("The set_timebase function is not yet programmed.")
 
+
     def get_voltage_trace(self, channel=1)->NDArray:
         self.instr.write(f":WAV:SOUR CHAN{channel}")
-        self.instr.write(":WAV:FORM ASCii")
-        self.instr.write(":WAV:MODE NORM")
         raw_data = self.instr.query(":WAV:DATA?")
         data_str = raw_data[11:] 
         volts = np.fromstring(data_str, sep=',')
         return volts
+
 
     def get_trace(self, channel=1)->tuple[NDArray[np.float64], NDArray[np.float64]]:
         """return the time and voltage of a channel"""
@@ -54,6 +64,7 @@ class ScopeRigolDS1104(AmazingInstrument):
         times = self.get_timebase()
         return times, volts
     
+
     def get_timebase(self):
         x_inc = float(self.instr.query(":WAV:XINC?"))
         x_orig = float(self.instr.query(":WAV:XOR?"))
@@ -67,6 +78,7 @@ class ScopeRigolDS1104(AmazingInstrument):
         self.instr.write(':TRIGger:EDGe:SOURce BUS')
         self.instr.write(':TRIGger:SWEep NORMal')
         self.instr.write(':SINGle')
+
 
     def measure(self, result:dict=None)->dict:
         if result is None:
