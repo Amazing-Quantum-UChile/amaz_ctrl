@@ -152,8 +152,6 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         # --- Get trace data (amplitude only) ---
         trace = self.instr.query("TRAC? TRACE1")
         amplitudes = np.array(trace.split(","), dtype=float)
-        if timeout :
-            amplitudes = np.zeros(len(amplitudes))
         # --- Get frequency settings ---
         center = float(self.instr.query("SENS:FREQ:CENT?"))
         span = float(self.instr.query("SENS:FREQ:SPAN?"))

@@ -159,6 +159,31 @@
         "stop": 9.0,
         "steps": 10
     },
+    "SA Tiny freq center (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Tiny freq span (MHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Tiny RBW (kHz)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "SA Tiny save raw data": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "SA Tiny Average trace No": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
     "Scope Rigol2 VISA": {
         "start": 0.0,
         "stop": 0.0,

@@ -10,6 +10,7 @@ from amaz_ctrl.scripts.subscripts.spectrum_anal_rigol import SpectrumAnalyzerRig
 from amaz_ctrl.scripts.subscripts.scope_rigol2202A import ScopeRigol2202A
 from amaz_ctrl.scripts.subscripts.scope_rigolDS1104 import ScopeRigolDS1104
 from amaz_ctrl.scripts.subscripts.powermeter_thorlabs import PowerMeterThorlabsPM16
+from amaz_ctrl.scripts.subscripts.spectrum_anal_tiny import  SpectrumAnalyzerTiny
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import pyvisa
@@ -84,42 +85,68 @@ class Script(AmazingScript):
         ##################
         ## Thorlabs Power Meter
         ##################
-        self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
+        # self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
+
+        ##################
+        ## TinySA
+        ##################
+        self.sa_tiny = SpectrumAnalyzerTiny(params=self.exp_params)
+        self.sa_tiny.set_params()
+
+
 
     
 
     def connect_sensors(self):
-        self.power_meter.open()
+        # self.power_meter.open()
         return
     
     def disconnect_sensors(self):
-        time.sleep(1.)
-        self.power_meter.close()
-        time.sleep(1.)
-        self.power_meter.close()
+        # time.sleep(1.)
+        # self.power_meter.close()
+        # time.sleep(1.)
+        # self.power_meter.close()
         return
 
 
     def measure_linewidth(self, result:dict)->dict:
-        """measure the linewidth of the laser using the Agilent Spectrum analyzer"""
-        freq, ampli = self.sa_agilent.get_trace()
-        p0=[80, np.max(ampli)*0.8, .35, 0 ]
-        ## mask 
-        mask = np.abs(freq-80) > 0.015
+        """measure the linewidth of the laser using the Tiny SA Spectrum analyzer"""
+        freq, ampli = self.sa_tiny.get_trace()
+        ## Go into W instead of dB
+        ampli = 10**(ampli)/1000
+        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        if self.exp_params["SA Tiny save raw data"]:
+            df.to_csv(self.run_prefix+"linewidth_raw.csv")
+        central_freq = 80
+        
+        ## mask because we 
+        mask_DX = self.exp_params["SA Tiny RBW (kHz)"] * 0.001 * 2
+        mask = np.abs(freq-central_freq) > mask_DX
+        p0=[central_freq, np.max(ampli[mask])*1.2, .35, 0 ]
         popt, pcov = curve_fit(lorentzian,
                                freq[mask],
                                ampli[mask], p0=p0,method="dogbox",
-                        bounds=([78, 0, .001, 0],[83, 200,5,10])
+                        bounds=([78, 0, .001, 0],[83, 5400,5,10])
                         )
-        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
-        df.to_csv(self.run_prefix+"raw.csv")
+        
         perr = np.sqrt(np.diag(pcov))
         result["Amplitude"] = popt[1]
         result["Gamma (kHz)"] = popt[2] *1000
         result["U(Amplitude)"] = perr[1]
         result["U(Gamma) (kHz)"] = perr[2] *1000
         error = np.sum((lorentzian(freq, *popt)-ampli)**2)
-        result["Fit error"] =error
+        result["Fit error"] = error
+        if self.j_run %30 ==0:
+            fig,ax = plt.subplots()
+            ax.plot(freq, ampli, "o", color ="C0")
+            ax.plot(freq, lorentzian(freq, *popt), color = "C0")
+            ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--")
+            ax.axvspan(central_freq-mask_DX, central_freq+mask_DX, color = "red", alpha = .2)
+            ax.set_xlabel("Frequency (MHz)")
+            ax.set_ylabel("Amplitude (a.u.)")
+            ax.set_ylim(top = max(np.max(ampli[mask])*1.4, popt[1])*1.15, bottom = 0)
+            plt.tight_layout()
+            fig.savefig(self.run_prefix+"beating_fig.png")
         return result
     
 
@@ -133,31 +160,6 @@ class Script(AmazingScript):
     
 
     def get_intensity_spectrum(self, result):
-        ## wait a bit so that we are sure the measurement started
-        time.sleep(.3)
-        ## We wait for the device to finish the measurement
-        t = time.time()
-        max_timeout = 50 #seconds
-        timeout = False
-        max_timeout = 50 #seconds
-        timeout = False
-        while not timeout:
-            #This query returns the decimal value of the sum of the bits in the 
-            # Status operation condition register.
-            opc_value = int(self.sa_agilent.instr.query(":STATus:OPERation:CONDition?"))
-            ## Bit 4 gives the measurement status
-            is_still_measuring =(opc_value >> 4) & 1
-            
-            if not is_still_measuring:
-                timeout = True
-                # self.log.info(f"The agilent finished in { int(time.time() - t )}s!")
-            else:
-                time.sleep(1.)
-            if time.time() - t >max_timeout:
-                timeout=True
-                self.log.warning("Timeout from the rigol measurement of the intensity noise...")
-                return result
-        ## the measurement is finished!
         freq, ampli = self.sa_agilent.get_trace()
         ### save raw data
         df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
@@ -220,16 +222,19 @@ class Script(AmazingScript):
 
     def acquire(self)->dict:
         result={}
-        self.start_intensity_spectrum_measurement()
+        ## trigg the measurement of the agilent
+        self.sa_agilent.trigg()
         # self.log.info("Reading squeezing...")
         result = self.get_squeezing(result)
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
         # result = self.measure_linewidth(result)
-        result = self.get_intensity_spectrum(result)
-
+        # result = self.get_intensity_spectrum(result)
+        freq, ampli = self.sa_agilent.get_trace()
+        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        df.to_csv(self.run_prefix+"linewidth_raw.csv")
         ## Other parameter measurements
         result = self.scope_rigol4.measure(result)
-        result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
+        # result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
        
         try:
             ## calibration done on week 22.
