@@ -72,15 +72,17 @@ class Script(AmazingScript):
         self.log.info("Connected to the Rigol2 entries oscilloscope.")
 
         ##################
-        ## -- Laser -- 
-        ##################
-        self.laser = Laser(params=self.exp_params)
-        self.laser.update_photon_detuning_from_device_frequency()
-
-        ##################
         ## -- Rigol Scope 2202A (lockin scope) --
         ##################
         self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
+        
+        ##################
+        ## -- Laser -- 
+        ##################
+        self.laser = Laser(params=self.exp_params, parent=self)
+        self.laser.update_photon_detuning_from_device_frequency()
+
+        
 
         ##################
         ## Thorlabs Power Meter
@@ -111,6 +113,8 @@ class Script(AmazingScript):
 
     def measure_linewidth(self, result:dict)->dict:
         """measure the linewidth of the laser using the Tiny SA Spectrum analyzer"""
+        if not self.sa_tiny._is_connected:
+            return result
         freq, ampli = self.sa_tiny.get_trace()
         ## Go into W instead of dB
         ampli = 10**(ampli)/1000
@@ -227,15 +231,14 @@ class Script(AmazingScript):
         # self.log.info("Reading squeezing...")
         result = self.get_squeezing(result)
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
-        # result = self.measure_linewidth(result)
+        result = self.measure_linewidth(result)
         # result = self.get_intensity_spectrum(result)
-        freq, ampli = self.sa_agilent.get_trace()
-        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
-        df.to_csv(self.run_prefix+"linewidth_raw.csv")
+        # freq, ampli = self.sa_agilent.get_trace()
+        # df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        # df.to_csv(self.run_prefix+"linewidth_raw.csv")
         ## Other parameter measurements
         result = self.scope_rigol4.measure(result)
         # result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
-       
         try:
             ## calibration done on week 22.
             result["Seed power (uW)"] = 0.03956*result["Seed power mean (mV)"] - 0.833
@@ -243,7 +246,9 @@ class Script(AmazingScript):
             # result["Pump power (mW)"] = 19.73*result["Thorlabs power meter (mW)"]-6.74
         except:
             self.log.warning("Failed to convert the seed power.", exc_info=True)
-        
+
+        result["delta (MHz)"] = self.exp_params["laser 2ph detuning (MHz)"]
+        result["Coil currente (mA)"] = self.exp_params["Additional Parameter 1 value"]
         return result
     
     def on_experiment_about_to_start(self):

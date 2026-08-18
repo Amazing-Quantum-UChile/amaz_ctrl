@@ -11,7 +11,6 @@ class AmazingInstrument():
         self.log = logging.getLogger(LOG_NAME)
         set_console_log(logger_name = LOG_NAME, log_level=log_level)
         self.params = params
-        self.connect()
 
     def connect(self):
         self.log.error(f"The Device {self.__class__.__name__} does not have a connect function.")

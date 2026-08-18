@@ -24,6 +24,51 @@
         "stop": 0.0,
         "steps": 0
     },
+    "laser lock pump power": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "laser target pump power (mW)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser pump tolerance (mW)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock pump power minimal step (deg)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock pump power maximal step (deg)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock pump power slope (deg/mW)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock pump power proportional PID": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock pump power max iterations": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock pump power USB address": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
     "Rb cell temperature (°C)": {
         "start": 0.0,
         "stop": 9.0,
@@ -54,12 +99,12 @@
         "stop": 9.0,
         "steps": 10
     },
-    "SA Agil LAN": {
+    "SA Agil connected": {
         "start": 0.0,
         "stop": 0.0,
         "steps": 0
     },
-    "SA Agil port": {
+    "SA Agil address": {
         "start": 0.0,
         "stop": 0.0,
         "steps": 0
@@ -159,6 +204,11 @@
         "stop": 9.0,
         "steps": 10
     },
+    "SA Tiny connected": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
     "SA Tiny freq center (MHz)": {
         "start": 0.0,
         "stop": 9.0,
@@ -183,6 +233,11 @@
         "start": 0.0,
         "stop": 9.0,
         "steps": 10
+    },
+    "Scope Rigol4 connected": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
     },
     "Scope Rigol2 VISA": {
         "start": 0.0,

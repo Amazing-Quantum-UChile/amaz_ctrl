@@ -26,9 +26,9 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 	def __init__(self, *arg,**kwargs):
         # Call the parent class __init__ method
 		super().__init__( *arg,**kwargs) 
-		self._is_connected = self.params["SA Tiny connected"]
 
 	def connect(self):
+		self._is_connected = self.params["SA Tiny connected"]
 		if self._is_connected:
 			device_list = list_ports.comports()
 			for device in device_list:

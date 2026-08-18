@@ -34,6 +34,8 @@ RESPONSES = [
 
 class ElliptecRotationStage(AmazingInstrument):
     """this class is taken from https://github.com/vuthalab/thorlabs-rotation_mount"""
+    _conn = None
+    _is_open = False
     def __init__(
             self,
             params:dict,
@@ -50,11 +52,18 @@ class ElliptecRotationStage(AmazingInstrument):
         self._offset = offset
         # super init will call the connect function
         super().__init__(params=params, log_level=log_level)
+        ## we close it because we do not want to keep a serial connection open
+        self.close()
         
     def connect(self):
         self._conn = serial.Serial(self.port, baudrate=9600, stopbits=1, parity='N', timeout=0.05)
+        return 
 
-        return super().connect()
+    def open_port(self):
+        self._conn.open()
+
+
+    
     def send(self, command, data=b''):
         """Send the given command type, with the given data payload."""
         packet = (
@@ -63,6 +72,8 @@ class ElliptecRotationStage(AmazingInstrument):
             + data.hex().upper().encode('utf-8')
             + b'\n'
         )
+        if not self.is_open:
+            self.open_port()
         self._conn.write(packet)
 
     def query(self, command, data=b''):
@@ -95,6 +106,10 @@ class ElliptecRotationStage(AmazingInstrument):
         header, response = self.query('gp')
         assert header == 'PO'
         return from_twos_complement(response)
+
+    @property
+    def is_open(self):
+        return self._conn.is_open
 
 
     ##### Public Interface #####
@@ -144,3 +159,6 @@ class ElliptecRotationStage(AmazingInstrument):
 
 
 
+class FakeSerial():
+    def close(self):
+        return 

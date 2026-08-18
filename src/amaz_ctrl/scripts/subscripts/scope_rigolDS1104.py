@@ -6,6 +6,7 @@ rm = get_windows_pyvisa_ressuorce_manager()
 from numpy.typing import NDArray
 class ScopeRigolDS1104(AmazingInstrument):
     def_params = {
+        "Scope Rigol4 connected":True,
         "Scope Rigol4 VISA": "USB0::0x1AB1::0x04CE::DS1ZA200602016::INSTR",
         "Scope Rigol4 ch1":True,
         "Scope Rigol4 ch1 name":"Channel 1",

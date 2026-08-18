@@ -9,8 +9,8 @@ rm = pyvisa.ResourceManager()
 class SpectrumAnalyzerAgilent(AmazingInstrument):
     last_trigg = time.time()
     def_params = {
-            "SA Agil LAN": "172.17.55.214",
-            "SA Agil port": "5025",
+            "SA Agil connected": True,
+            "SA Agil address": "TCPIP0::172.17.55.58::5025::SOCKET",
             "SA Agil freq center (MHz)": 80,
             "SA Agil freq span (MHz)": 5,
             "SA Agil RBW (kHz)": 10,
@@ -27,13 +27,18 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         }
 
     def connect(self):
-        self.ip = self.get_param("SA Agil LAN")
-        self.port =  self.get_param("SA Agil port")
-        self.instr = rm.open_resource(f"TCPIP0::{self.ip}::{self.port}::SOCKET")
+        self._is_connected = self.params["SA Agil connected"]
+        self.addr =  self.get_param("SA Agil address")
+        if not self._is_connected:
+            self.log.info("SA Agilent is not connected: setting it in dummy mode.")
+            return
+        self.instr = rm.open_resource(self.addr)
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
 
     def set_params(self): 
+        if not self._is_connected:
+            return
         self.instr.write(f"SENS:FREQ:CENT {self.params['SA Agil freq center (MHz)']} MHz")
         self.instr.write(f"SENS:FREQ:SPAN {self.params['SA Agil freq span (MHz)']} MHz")
         self.instr.write("SENS:BAND:RES:AUTO OFF")
@@ -80,7 +85,8 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         • Average detection is used when measuring the average value of the amplitude across each trace interval (bucket). The averaging method used by the average detector is set to either video or power as appropriate when the average type is auto coupled. 
         • Normal detection selects the maximum and minimum video signal values alternately. When selecting Normal detection, “Norm” appears in the upper-left corner.
         """
-
+        if not self._is_connected:
+            return
         info = [
           "Negative peak detection displays the lowest sample taken during the interval being displayed. ",
           "Positive peak detection displays the highest sample taken during the interval being displayed. ",
@@ -112,11 +118,14 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
     
     def get_sweep_time(self)-> float:
         """return the sweep time of the SA (seconds)"""
+        if not self._is_connected:
+            return 0.000001
         return float(self.instr.query(':SWE:TIME?'))
 
 
     def trigg(self):
-        
+        if not self._is_connected:
+            return
         self.instr.write(":INITiate")
 
     
@@ -126,6 +135,13 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         Returns frequency (MHz) or time (s) and amplitude (V or dBm depending on instrument setting)
         from a spectrum analyzer trace.
         """
+        if not self._is_connected:
+            self.log.info("Agilent SA in dummy mode: generating fake data.")
+            return np.linspace(
+				self.params["SA Agil freq center (MHz)"]-self.params["SA Agil freq span (MHz)"]/2,
+				self.params["SA Agil freq center (MHz)"]+self.params["SA Agil freq span (MHz)"]/2,
+				101), np.zeros(101) - 100
+             
         ## If the agilent was triggered, we wait that it finished his job
         if not self.is_continuous:
             time.sleep(.2)
