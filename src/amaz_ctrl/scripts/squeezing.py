@@ -83,88 +83,44 @@ class Script(AmazingScript):
             # to match the one of the experiment
             instr.params = self.exp_params
             instr.set_parameters()
-        # ##################
-        # ## -- Agilent Spectrum Analyzer
-        # ##################
-        
-        # self.sa_agilent.set_parameters()
-        
-
-        # ##################
-        # ## -- Rigol Spectrum Analyzer --
-        # ##################
-        # self.log.info("Trying to connect to the Rigol Spetrum Analyzer.")
-        # self.sa_rigol = SpectrumAnalyzerRigol(params=self.exp_params)
-        # self.sa_rigol.set_parameters() # connect and set parameters
-        # ## Wait for the manual trigger
-        # self.sa_rigol.instr.write(":INITiate:CONTinuous OFF")
-        # self.log.info("Connected to the Rigol Spectrum analyzer.")
-        
-        # ##################
-        # ## -- Rigol Scope 2202A (probe & conjugate) --
-        # ##################
-        # self.scope_rigol2 = ScopeRigol2202A(params=self.exp_params)
-        # self.scope_rigol2.connect()
-        # ### We want the Rigol scope to have the same timebase as the spectrum analyzer
-        # timebase = self.sa_rigol.get_sweep_time() #in seconds
-        # # self.scope_rigol2.set_timebase(total_time = timebase)
-        # # self.scope_rigol2.set_single_bus_triggered()
-        # self.scope_rigol2.configure_for_squeezing()
-        # self.log.info("Connected to the Rigol2 entries oscilloscope.")
-
-        # ##################
-        # ## -- Rigol Scope 2202A (lockin scope) --
-        # ##################
-        # self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
-
-        # ##################
-        # ## -- Laser -- 
-        # ##################
-        # self.laser = Laser(params=self.exp_params, parent=self)
-        # self.laser.update_photon_detuning_from_device_frequency()
-
-        
-
-        # ##################
-        # ## Thorlabs Power Meter
-        # ##################
-        # # self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
-
-        # ##################
-        # ## TinySA
-        # ##################
-        # self.sa_tiny = SpectrumAnalyzerTiny(params=self.exp_params)
-        # self.sa_tiny.set_parameters()
-
-
-
-    
-
-    
 
 
     def measure_linewidth(self, result:dict)->dict:
         """measure the linewidth of the laser using the Tiny SA Spectrum analyzer"""
         if not self.sa_tiny._is_connected:
             return result
-        freq, ampli = self.sa_tiny.get_trace()
+        freq, amplidBm = self.sa_tiny.get_trace()
+        freq = freq / 1e6 #we use freq in MHz
         ## Go into W instead of dB
-        ampli = 10**(ampli)/1000
-        df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
+        ampli = 10**(amplidBm/10)
+        df = pd.DataFrame({"Freq":freq, "Ampli":ampli, "Ampli (dB)":amplidBm})
         if self.exp_params["SA Tiny save raw data"]:
             df.to_csv(self.run_prefix+"linewidth_raw.csv")
+        
+        ## mask because we have a big peak we do not want to fit
         central_freq = 80
-        
-        ## mask because we 
-        mask_DX = self.exp_params["SA Tiny RBW (kHz)"] * 0.001 * 2
+        mask_DX = 10 * 0.001 * 2
+
         mask = np.abs(freq-central_freq) > mask_DX
-        p0=[central_freq, np.max(ampli[mask])*1.2, .35, 0 ]
-        popt, pcov = curve_fit(lorentzian,
-                               freq[mask],
-                               ampli[mask], p0=p0,method="dogbox",
-                        bounds=([78, 0, .001, 0],[83, 5400,5,10])
-                        )
-        
+        scale_factor =1/ np.max(ampli[mask])
+        p0=[central_freq, 1*1.2, .35, 0 ]
+        popt, pcov, infodict, mesg, ier = curve_fit(lorentzian,
+                                freq[mask],
+                                ampli[mask] * scale_factor,
+                                p0=p0,
+                                method="trf",
+                                full_output = True,
+                        bounds=([central_freq - 0.01, 0, .001, 0],[central_freq + 0.01, 5400,5,10]))
+
+        perr = np.sqrt(np.diag(pcov))
+        p0[1] = p0[1] / scale_factor
+        perr[1] = perr[1] / scale_factor
+        popt[1] = popt[1] / scale_factor
+        p0[3] = p0[3] / scale_factor
+        perr[3] = perr[3] / scale_factor
+        popt[3] = popt[3] / scale_factor
+        error = np.sum((lorentzian(freq[mask], *popt)-ampli[mask])**2)
+
         perr = np.sqrt(np.diag(pcov))
         result["Amplitude"] = popt[1]
         result["Gamma (kHz)"] = popt[2] *1000
@@ -174,15 +130,17 @@ class Script(AmazingScript):
         result["Fit error"] = error
         if self.j_run %30 ==0:
             fig,ax = plt.subplots()
-            ax.plot(freq, ampli, "o", color ="C0")
-            ax.plot(freq, lorentzian(freq, *popt), color = "C0")
-            ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--")
+            ax.plot(freq, ampli, "o", color ="C0", label = "Data")
+            ax.plot(freq, lorentzian(freq, *popt), color = "C0", label = "Fit")
+            ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--", label = "Guess")
             ax.axvspan(central_freq-mask_DX, central_freq+mask_DX, color = "red", alpha = .2)
             ax.set_xlabel("Frequency (MHz)")
             ax.set_ylabel("Amplitude (a.u.)")
             ax.set_ylim(top = max(np.max(ampli[mask])*1.4, popt[1])*1.15, bottom = 0)
+            ax.legend()
             plt.tight_layout()
             fig.savefig(self.run_prefix+"beating_fig.png")
+            plt.close(fig)
         return result
     
 
@@ -219,8 +177,8 @@ class Script(AmazingScript):
         
         ## We trigg the scope and the spectrum analyzer
         self.scope_rigol2.trigger_now()
-        ch1 = self.scope_rigol2.get_trace_volts(channel=1) 
-        ch2 = self.scope_rigol2.get_trace_volts(channel=2)
+        ch1 = self.scope_rigol2.get_voltage_trace(channel=1) 
+        ch2 = self.scope_rigol2.get_voltage_trace(channel=2)
         self.sa_rigol.write('init:cont 0')
         # self.sa_rigol.query(":INITiate:IMMediate;*OPC?") #this query block the rigol spectrum analyzer until it finished the trace
         t0 = time.time()
@@ -258,13 +216,14 @@ class Script(AmazingScript):
 
     def acquire(self)->dict:
         result={}
-        return result
         ## trigg the measurement of the agilent
         self.sa_agilent.trigg()
         # self.log.info("Reading squeezing...")
         result = self.get_squeezing(result)
+        
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
         result = self.measure_linewidth(result)
+        return result
         # result = self.get_intensity_spectrum(result)
         # freq, ampli = self.sa_agilent.get_trace()
         # df = pd.DataFrame({"Freq":freq, "Ampli":ampli})

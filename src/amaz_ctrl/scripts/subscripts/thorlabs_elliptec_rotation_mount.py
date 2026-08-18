@@ -69,6 +69,7 @@ class ElliptecRotationStage(AmazingInstrument):
     def disconnect(self):
         if self._conn.is_open:
             self._conn.close()
+            self.log.info(f"Disconnected from the Elliptec Rotation Mount on port { self.port}")
 
     def set_parameters(self):
         pass
