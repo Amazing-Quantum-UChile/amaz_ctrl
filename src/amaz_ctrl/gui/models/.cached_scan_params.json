@@ -94,6 +94,11 @@
         "stop": 0.0,
         "steps": 0
     },
+    "powermeter thorlabs": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
     "iteration duration (s)": {
         "start": 0.0,
         "stop": 9.0,

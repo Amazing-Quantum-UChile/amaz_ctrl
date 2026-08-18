@@ -52,15 +52,27 @@ class ElliptecRotationStage(AmazingInstrument):
         self._offset = offset
         # super init will call the connect function
         super().__init__(params=params, log_level=log_level)
-        ## we close it because we do not want to keep a serial connection open
-        self.close()
+        self._conn = serial.Serial(port = None, 
+                                   baudrate=9600, 
+                                   stopbits=1,
+                                   parity='N', 
+                                   timeout=0.5)
+        self.log.info("Elliptec instanciated")
+        
         
     def connect(self):
-        self._conn = serial.Serial(self.port, baudrate=9600, stopbits=1, parity='N', timeout=0.05)
+        if self.params["laser lock pump power"]:
+            self._conn.port = self.port
+            self._conn.open()
         return 
+    
+    def disconnect(self):
+        if self._conn.is_open:
+            self._conn.close()
 
-    def open_port(self):
-        self._conn.open()
+    def set_parameters(self):
+        pass
+
 
 
     

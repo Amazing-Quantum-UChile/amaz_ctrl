@@ -33,16 +33,19 @@ class ScopeRigolDS1104(AmazingInstrument):
     def connect(self):
         self.visa_adress =  self.get_param("Scope Rigol4 VISA")
         self.instr = rm.open_resource(self.visa_adress)
-        self.set_parameters()
-        # for i in range(1, 5):
-        #     if self.get_param(f"Scope Rigol4 ch{i}"):
-        #         v_range = self.get_param(f"Scope Rigol4 ch{i} range (V)")
-        #         self.instr.write(f":CHANnel{i}:RANGe {v_range}")
+
+    def disconnect(self):
+        self.instr.close()
+        
 
 
     def set_parameters(self):
         self.instr.write(":WAV:FORM ASCii")
         self.instr.write(":WAV:MODE NORM")
+        # for i in range(1, 5):
+        #     if self.get_param(f"Scope Rigol4 ch{i}"):
+        #         v_range = self.get_param(f"Scope Rigol4 ch{i} range (V)")
+        #         self.instr.write(f":CHANnel{i}:RANGe {v_range}")
 
 
     def set_timebase(self, total_time:float):

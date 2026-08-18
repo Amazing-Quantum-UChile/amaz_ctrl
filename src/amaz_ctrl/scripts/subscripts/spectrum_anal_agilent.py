@@ -8,6 +8,7 @@ rm = pyvisa.ResourceManager()
 
 class SpectrumAnalyzerAgilent(AmazingInstrument):
     last_trigg = time.time()
+    _is_connected = False
     def_params = {
             "SA Agil connected": True,
             "SA Agil address": "TCPIP0::172.17.55.58::5025::SOCKET",
@@ -27,16 +28,23 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
         }
 
     def connect(self):
-        self._is_connected = self.params["SA Agil connected"]
-        self.addr =  self.get_param("SA Agil address")
-        if not self._is_connected:
+        
+        if not self.params["SA Agil connected"]:
             self.log.info("SA Agilent is not connected: setting it in dummy mode.")
             return
+        self.addr =  self.get_param("SA Agil address")
         self.instr = rm.open_resource(self.addr)
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
+        self._is_connected = True
 
-    def set_params(self): 
+    def disconnect(self):
+        if self._is_connected:
+            self.instr.close()
+            self._is_connected = False
+
+
+    def set_parameters(self): 
         if not self._is_connected:
             return
         self.instr.write(f"SENS:FREQ:CENT {self.params['SA Agil freq center (MHz)']} MHz")
@@ -141,7 +149,6 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
 				self.params["SA Agil freq center (MHz)"]-self.params["SA Agil freq span (MHz)"]/2,
 				self.params["SA Agil freq center (MHz)"]+self.params["SA Agil freq span (MHz)"]/2,
 				101), np.zeros(101) - 100
-             
         ## If the agilent was triggered, we wait that it finished his job
         if not self.is_continuous:
             time.sleep(.2)
@@ -186,7 +193,7 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
 
 if __name__=="__main__":
     sa = SpectrumAnalyzerAgilent()
-    sa.set_params()
+    sa.set_parameters()
     print(sa.instr.query("*IDN?"))
     import matplotlib.pyplot as plt
     x, y = sa.get_trace()

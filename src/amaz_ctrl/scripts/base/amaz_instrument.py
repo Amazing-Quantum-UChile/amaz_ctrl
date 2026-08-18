@@ -12,9 +12,6 @@ class AmazingInstrument():
         set_console_log(logger_name = LOG_NAME, log_level=log_level)
         self.params = params
 
-    def connect(self):
-        self.log.error(f"The Device {self.__class__.__name__} does not have a connect function.")
-
         
     @property
     def params(self):
@@ -58,6 +55,17 @@ class AmazingInstrument():
             self.connect()
         return self.instr.query(cmd)
 
+
+    #### Methods to be defined in daughter class
+    def connect(self):
+        self.log.error(f"The Device {self.__class__.__name__} does not have a connect function.")
+
+    def disconnect(self):
+        self.log.error(f"The Device {self.__class__.__name__} does not have a disconnect function.")
+
+    def set_parameters(self):
+        self.log.error(f"The Device {self.__class__.__name__} does not have a set_parameters function.")
+        
 # %% Tests 
 if __name__=="__main__":
     instrument = AmazingInstrument()

@@ -34,7 +34,7 @@ import pandas as pd
 from amaz_ctrl.tools.amaz_logs import set_console_log
 from amaz_ctrl.tools.misc import ordinal
 from collections import ChainMap
-
+from amaz_ctrl.scripts.base.amaz_instrument import AmazingInstrument
 import inspect
 
 
@@ -126,6 +126,8 @@ class AmazingScript():
         list_of_experiments = self.build_list_of_experiments(scanned_params_dict)
         #-. Start sequence
         self._on_sequence_about_to_start()
+        self._connect_sensors()
+        self._sensors_are_connected = True
         
         no_of_exp =len(list_of_experiments)
         self.log.info(f"Starting a sequence of {no_of_exp} experiments as part as protocol {self.proto_number}. Saving data in {self.proto_directory}.")
@@ -145,7 +147,8 @@ class AmazingScript():
             nruns = self._exp_params["No of realizations"]
             self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._proto_number} [{nruns} realizations].")
             self.start_experiment()
-        
+        self.disconnect_sensors()
+        self._sensors_are_connected = False
         self.on_sequence_about_to_end()
         if self.stop_event.is_set():
             status = "stopped"
@@ -159,8 +162,7 @@ class AmazingScript():
         self._exp_dir = self.create_experiment_folder()
         self._prepare_experiment()
         self._on_experiment_about_to_start()
-        self._connect_sensors()
-        self._sensors_are_connected = True
+        
         
         ## Set the ID of the Experiment 
         now = datetime.now()
@@ -188,8 +190,7 @@ class AmazingScript():
                 self.experiment_result = pd.DataFrame(run_result_list)
                 self.save_experiment_result()
         self._j_run = None
-        self.disconnect_sensors()
-        self._sensors_are_connected = False
+        
         self.experiment_result = pd.DataFrame(run_result_list)
         self._on_experiment_about_to_end()
         self.save_experiment_result()
@@ -676,6 +677,17 @@ class AmazingScript():
         """method called before after a sequence of experiments finished so that the user can do whatever they want at this stage."""
         pass
 
+
+    ##### METHODS TO DEAL WITH AMAZING INSTRUMENTS
+    def get_instruments(self):
+        """return the attributs of the class which are object inheriting from the AmazingScript class"""
+        return [
+            value
+            for value in vars(self).values()
+            if isinstance(value, AmazingInstrument)
+        ]
+
+    
 if __name__ == "__main__":
     script = AmazingScript(exp_params_dir='/Users/victor/amaz_ctrl/src/amaz_ctrl/scripts')
     script.main()

@@ -10,10 +10,16 @@ class ScopeRigol2202A(AmazingInstrument):
         }
     numb_of_div = 14 # horizontal number of division
 
-
     def connect(self):
         self.visa_adress =  self.get_param("Scope Rigol2 VISA")
         self.instr = rm.open_resource(self.visa_adress)
+
+    def disconnect(self):
+        self.instr.close()
+
+    def set_parameters(self):
+        # for now we just do that
+        self.configure_for_squeezing()
 
     def configure_for_squeezing(self):
         scope = self.instr
@@ -46,7 +52,7 @@ class ScopeRigol2202A(AmazingInstrument):
         time_per_div = total_time / self.numb_of_div
         self.instr.write(f':TIMebase:MAIN:SCALe {time_per_div}')
 
-    def get_trace_volts(self,channel=1 ):
+    def get_voltage_trace(self,channel=1 ):
         self.instr.write(f":WAV:SOUR CHAN{channel}")
         self.instr.write(":WAV:FORM ASCii")
         # self.instr.write(":WAV:MODE NORM")
@@ -56,8 +62,9 @@ class ScopeRigol2202A(AmazingInstrument):
         data_str=raw_data.replace(",\n", "")
         # volts = [float(val) for val in data_str.split(',')]
         return volts
+    
     def get_trace(self, channel=1):
-        volts = self.get_trace_volts(channel=channel)
+        volts = self.get_voltage_trace(channel=channel)
         x_inc = float(self.instr.query(":WAV:XINC?"))
         x_orig = float(self.instr.query(":WAV:XOR?"))
         times = [x_orig + (i * x_inc) for i in range(len(volts))]

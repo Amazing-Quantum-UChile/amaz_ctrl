@@ -16,9 +16,16 @@ from Thorlabs.TLPMX_64.Interop import TLPMX
 class PowerMeterThorlabsPM16(AmazingInstrument):
     is_connected = False
     device_name = "PM16-405"
+    def_params = {"powermeter thorlabs":False}
     
     def connect(self):
+        if self.params["powermeter thorlabs"]:
+            self.open()
+    def disconnect(self):
+        self.close() 
+    def set_parameters(self):
         pass
+
 
 
     def open(self):
@@ -80,7 +87,7 @@ class PowerMeterThorlabsPM16(AmazingInstrument):
         """
         if not self.is_connected:
             self.show_not_connected_error()
-            return None
+            return 795e-9
         
         action_mode = System.Int16(0) #0: current wavelenght, 1: minimum wavelenght: 2: maximum wavelength
         wavelength_buffer = System.Double(0.0) # buffer for the value
@@ -96,7 +103,7 @@ class PowerMeterThorlabsPM16(AmazingInstrument):
         """
         if not self.is_connected:
             self.show_not_connected_error()
-            return None
+            return 0.0
         
         power_buffer = System.Double(0.0) # buffer for the value
         channel = System.UInt16(1)        # The channel (1 here)
@@ -105,7 +112,9 @@ class PowerMeterThorlabsPM16(AmazingInstrument):
         return current_power
 
     def show_not_connected_error(self):
-        self.log.warning("The Thorlabs Power meter device is not connected or opened. Please call the open method and once finished close it using the close method.")
+        #we only show the error if the user wanted to connect to the device.
+        if self.params["powermeter thorlabs"]:
+            self.log.warning("The Thorlabs Power meter device is not connected or opened. Please call the open method and once finished close it using the close method.")
 
     def get_unit(self) -> str:
         """Get the current power unit of the device. Relies on the getPowerUnit function 

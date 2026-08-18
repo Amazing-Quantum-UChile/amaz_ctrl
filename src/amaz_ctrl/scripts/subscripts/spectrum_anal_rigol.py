@@ -18,11 +18,11 @@ class SpectrumAnalyzerRigol(AmazingInstrument):
         self.visa_adress =  self.get_param("SA Rigol VISA")
         self.instr = rm.open_resource(self.visa_adress)
 
+    def disconnect(self):
+        self.instr.close()
 
-    def set_params(self):
-        self.connect()
 
-
+    def set_parameters(self):
         SA = self.instr
         SA.write(':SENS:FREQ:CENT 1MHz')
         # Configura span a 0 Hz (modo Zero Span)

@@ -30,60 +30,51 @@ class Laser(AmazingInstrument):
     def __init__(self, params, parent, log_level="INFO"):
         super().__init__(params, log_level)
         self.parent = parent #this is the script class so that we have access to the methods of the script class
+        
         self.rigoldsg830 = RigolDSG830(self.params, log_level)
         self.rigoldsg815 = RigolDSG815(params, log_level)
-        self.lock_pump = self.params["laser lock pump power"]
-        if self.lock_pump:
-            self.connect_rotation_stage()
-            a = self.get_pump_power()
-        self.lock_pump_step_min = np.abs(self.params["laser lock pump power minimal step (deg)"])
-        self.lock_pump_step_max = np.abs(self.params["laser lock pump power maximal step (deg)"])
-        self.verify_pump_rotation_position()
-
-    def verify_pump_rotation_position(self):
-        if not self.lock_pump:
-            return
-        angle = self.pump_rotation.angle
-        self.pump_rotation_history = [{"Time":time.time(), "Angle (deg)":angle}]
-        if angle >90 or angle < 45:
-            self.log.warning(f"The pump rotation mount was at {angle} which is outside the authorized range [45,90]. We moove it to 80 degrees.")
-            delta = 80 - angle
-            self.pump_rotation.move_by(delta)
-            time.sleep(2.)
+        self.pump_rotation = ElliptecRotationStage(self.params,
+                                                port = self.params["laser lock pump power USB address"])
+        self.instruments = [
+            self.rigoldsg830,
+            self.rigoldsg815,
+            self.pump_rotation
+        ]
+        
+        # if self.lock_pump:
+        #     self.connect_rotation_stage()
+        #     a = self.get_pump_power()
+        #     self.verify_pump_rotation_position()
+   
 
     def connect(self):
-        # Connection is done in subdevices
-        pass
+        for instr in self.instruments:
+            self.log.info("Trying to connect to: {c}".format(
+                c=type(instr).__name__))
+            instr.connect()
+        
 
-    def connect_rotation_stage(self):
-        try:
-            self.pump_rotation = ElliptecRotationStage(self.params,
-                                                       port = self.params["laser lock pump power USB address"])
-        except Exception as e:
-            self.log.error("{t}: {e}. Failed to connect to the EllipteC Rotation Stage. Not servo looping the pump power.".format(
+    def disconnect(self):
+        for instr in self.instruments:
+            try:
+                instr.disconnect()
+            except Exception as e:
+                self.log.info("Deconnecting to: {c}".format(
+                                c=type(instr).__name__))
+                self.log.error("{t}: {e}. Failed to disconnect to the object {c}. Continuing the disconnection protocol.".format(
                 t=type(e).__name__, 
                 e=e,
+                c=type(instr).__name__
             ))
-            self.params["laser lock pump power"] = False
-            self.lock_pump = self.params["laser lock pump power"]
+       
+    def set_parameters(self):
+        for instr in self.instruments:
+            instr.set_parameters()
+        self.lock_pump = self.params["laser lock pump power"]
+        self.lock_pump_step_min = np.abs(self.params["laser lock pump power minimal step (deg)"])
+        self.lock_pump_step_max = np.abs(self.params["laser lock pump power maximal step (deg)"])
+        self.update_photon_detuning_from_device_frequency()
 
-    def check_power(self):
-        if not self.lock_pump:
-            return
-
-
-    def get_pump_power(self):
-        try:
-            # calibration done in week 32 of 2026.
-            return 92.7*np.mean(self.parent.scope_rigol4.get_voltage_trace(channel = 1)) - 7
-        except Exception as e:
-            self.log.error("{t}: {e}. Failed to measure the pump power. Not servo looping the pump power.".format(
-                t=type(e).__name__, 
-                e=e,
-            ))
-            self.params["laser lock pump power"] = False
-            self.lock_pump = self.params["laser lock pump power"]
-            return 0
 
     def update_photon_detuning_from_device_frequency(self):
         """update the parameter dictionary using the locking transition and the frequency of the AOM."""
@@ -107,6 +98,47 @@ class Laser(AmazingInstrument):
         delta_1ph =  - 2*aom200 + self.locking_frequency  + aom1500 - self.f_25P
         self.params["laser 2ph detuning (MHz)"] = delta_2ph / 1e6
         self.params["laser 1ph detuning (MHz)"] = delta_1ph / 1e6
+
+
+    #############################
+    #### Pump rotation stage ####
+    #############################
+    def connect_rotation_stage(self):
+        try:
+            self.pump_rotation = ElliptecRotationStage(self.params,
+                                                       port = self.params["laser lock pump power USB address"])
+        except Exception as e:
+            self.log.error("{t}: {e}. Failed to connect to the EllipteC Rotation Stage. Not servo looping the pump power.".format(
+                t=type(e).__name__, 
+                e=e,
+            ))
+            self.params["laser lock pump power"] = False
+            self.lock_pump = self.params["laser lock pump power"]
+
+    def verify_pump_rotation_position(self):
+            if not self.lock_pump:
+                return
+            angle = self.pump_rotation.angle
+            self.pump_rotation_history = [{"Time":time.time(), "Angle (deg)":angle}]
+            if angle >90 or angle < 45:
+                self.log.warning(f"The pump rotation mount was at {angle} which is outside the authorized range [45,90]. We moove it to 80 degrees.")
+                delta = 80 - angle
+                self.pump_rotation.move_by(delta)
+                time.sleep(2.)
+    def get_pump_power(self):
+        try:
+            # calibration done in week 32 of 2026.
+            return 92.7*np.mean(self.parent.scope_rigol4.get_voltage_trace(channel = 1)) - 7
+        except Exception as e:
+            self.log.error("{t}: {e}. Failed to measure the pump power. Not servo looping the pump power.".format(
+                t=type(e).__name__, 
+                e=e,
+            ))
+            self.params["laser lock pump power"] = False
+            self.lock_pump = self.params["laser lock pump power"]
+            return 0
+
+    
         
     def rotate_pump_lambda(self, degs = 1.):
         """
@@ -235,17 +267,18 @@ class RigolDSG815(RigolWFG):
     max_freq_MHz = 200
     max_power_dBm = -5
 
-    def set_params(self):
+    def set_parameters(self):
+        return
         self.log.warning("This is not yet implemented")
 
     def connect(self):
         """Connect to the Rigol DSG815 signal generator via LAN (SCPI socket)."""
         self.ip = self.params["laser Rigol DSG815 LAN"]
-        self.log.info(f"Connecting to RigolDSG815 {self.ip}")
         self.instr = rm.open_resource(f"TCPIP0::{self.ip}::INSTR")
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
-
+    def disconnect(self):
+        self.instr.close()
 
 class RigolDSG830(RigolWFG):
     ## set the default parameters
@@ -255,14 +288,15 @@ class RigolDSG830(RigolWFG):
     def connect(self):
         """Connect to the Rigol DSG830 signal generator via LAN (SCPI socket)."""
         self.ip = self.params["laser Rigol DSG830 LAN"]
-        self.log.info(f"Connecting to RigolDSG830 {self.ip}")
         self.instr = rm.open_resource(f"TCPIP0::{self.ip}::INSTR")
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
+    def disconnect(self):
+        self.instr.close()
 
-    def set_params(self):
+    def set_parameters(self):
         """Configure RF generator parameters using the parameters."""
-        self.connect()
+        return
         self.set_frequency(self.params["laser Rigol DSG830 freq (GHz)"])
         self.set_power(self.params["laser Rigol DSG830 power (dBm)"])
         self.instr.write(":OUTP ON")

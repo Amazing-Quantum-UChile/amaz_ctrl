@@ -41,74 +41,106 @@ class Script(AmazingScript):
                          data_root_dir = data_root_dir,
                          log_level=log_level)
 
-    def prepare_experiment(self):
-        ##################
-        ## -- Agilent Spectrum Analyzer
-        ##################
         self.sa_agilent = SpectrumAnalyzerAgilent(params=self.exp_params)
-        self.sa_agilent.set_params()
-        
-
-        ##################
-        ## -- Rigol Spectrum Analyzer --
-        ##################
-        self.log.info("Trying to connect to the Rigol Spetrum Analyzer.")
         self.sa_rigol = SpectrumAnalyzerRigol(params=self.exp_params)
-        self.sa_rigol.set_params() # connect and set parameters
-        ## Wait for the manual trigger
-        self.sa_rigol.instr.write(":INITiate:CONTinuous OFF")
-        self.log.info("Connected to the Rigol Spectrum analyzer.")
-        
-        ##################
-        ## -- Rigol Scope 2202A (probe & conjugate) --
-        ##################
         self.scope_rigol2 = ScopeRigol2202A(params=self.exp_params)
-        self.scope_rigol2.connect()
-        ### We want the Rigol scope to have the same timebase as the spectrum analyzer
-        timebase = self.sa_rigol.get_sweep_time() #in seconds
-        # self.scope_rigol2.set_timebase(total_time = timebase)
-        # self.scope_rigol2.set_single_bus_triggered()
-        self.scope_rigol2.configure_for_squeezing()
-        self.log.info("Connected to the Rigol2 entries oscilloscope.")
-
-        ##################
-        ## -- Rigol Scope 2202A (lockin scope) --
-        ##################
         self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
-        
-        ##################
-        ## -- Laser -- 
-        ##################
         self.laser = Laser(params=self.exp_params, parent=self)
-        self.laser.update_photon_detuning_from_device_frequency()
-
-        
-
-        ##################
-        ## Thorlabs Power Meter
-        ##################
-        # self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
-
-        ##################
-        ## TinySA
-        ##################
+        self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
         self.sa_tiny = SpectrumAnalyzerTiny(params=self.exp_params)
-        self.sa_tiny.set_params()
 
-
-
-    
 
     def connect_sensors(self):
-        # self.power_meter.open()
+        # we get the list of instruments which inherit the AmazingInstrument class
+        instrs = self.get_instruments()
+        for instr in instrs:
+            self.log.info("Trying to connect to: {c}".format(
+                c=type(instr).__name__))
+            instr.connect()
         return
     
     def disconnect_sensors(self):
-        # time.sleep(1.)
-        # self.power_meter.close()
-        # time.sleep(1.)
-        # self.power_meter.close()
+        # we get the list of instruments which inherit the AmazingInstrument class
+        instrs = self.get_instruments()
+        for instr in instrs:
+            try:
+                instr.disconnect()
+            except Exception as e:
+                self.log.info("Deconnecting to: {c}".format(
+                                c=type(instr).__name__))
+                self.log.error("{t}: {e}. Failed to disconnect to the object {c}. Continuing the disconnection protocol.".format(
+                t=type(e).__name__, 
+                e=e,
+                c=type(instr).__name__
+            ))
         return
+
+    def prepare_experiment(self):
+        # we get the list of instruments which inherit the AmazingInstrument class
+        instrs = self.get_instruments()
+        for instr in instrs:
+            #-. We update the parameter of each instrument 
+            # to match the one of the experiment
+            instr.params = self.exp_params
+            instr.set_parameters()
+        # ##################
+        # ## -- Agilent Spectrum Analyzer
+        # ##################
+        
+        # self.sa_agilent.set_parameters()
+        
+
+        # ##################
+        # ## -- Rigol Spectrum Analyzer --
+        # ##################
+        # self.log.info("Trying to connect to the Rigol Spetrum Analyzer.")
+        # self.sa_rigol = SpectrumAnalyzerRigol(params=self.exp_params)
+        # self.sa_rigol.set_parameters() # connect and set parameters
+        # ## Wait for the manual trigger
+        # self.sa_rigol.instr.write(":INITiate:CONTinuous OFF")
+        # self.log.info("Connected to the Rigol Spectrum analyzer.")
+        
+        # ##################
+        # ## -- Rigol Scope 2202A (probe & conjugate) --
+        # ##################
+        # self.scope_rigol2 = ScopeRigol2202A(params=self.exp_params)
+        # self.scope_rigol2.connect()
+        # ### We want the Rigol scope to have the same timebase as the spectrum analyzer
+        # timebase = self.sa_rigol.get_sweep_time() #in seconds
+        # # self.scope_rigol2.set_timebase(total_time = timebase)
+        # # self.scope_rigol2.set_single_bus_triggered()
+        # self.scope_rigol2.configure_for_squeezing()
+        # self.log.info("Connected to the Rigol2 entries oscilloscope.")
+
+        # ##################
+        # ## -- Rigol Scope 2202A (lockin scope) --
+        # ##################
+        # self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
+
+        # ##################
+        # ## -- Laser -- 
+        # ##################
+        # self.laser = Laser(params=self.exp_params, parent=self)
+        # self.laser.update_photon_detuning_from_device_frequency()
+
+        
+
+        # ##################
+        # ## Thorlabs Power Meter
+        # ##################
+        # # self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
+
+        # ##################
+        # ## TinySA
+        # ##################
+        # self.sa_tiny = SpectrumAnalyzerTiny(params=self.exp_params)
+        # self.sa_tiny.set_parameters()
+
+
+
+    
+
+    
 
 
     def measure_linewidth(self, result:dict)->dict:
@@ -226,6 +258,7 @@ class Script(AmazingScript):
 
     def acquire(self)->dict:
         result={}
+        return result
         ## trigg the measurement of the agilent
         self.sa_agilent.trigg()
         # self.log.info("Reading squeezing...")
@@ -260,13 +293,14 @@ class Script(AmazingScript):
         We could modify the dataframe self.experiment_result 
         """
         pass
+    
     def on_sequence_about_to_start(self):
         """method called before a sequence of experiments starts so that the user can do whatever they want at this stage."""
         pass
-    
+
     def on_sequence_about_to_end(self):
         """method called before after a sequence of experiments finished so that the user can do whatever they want at this stage."""
-        pass
+        pass   
 
 
 def lorentzian( x, x0, a, gam, offset ):

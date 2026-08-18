@@ -43,8 +43,9 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 			self.dev = None
 			return 
 
-
-	def set_params(self): 
+	def disconnect(self):
+		self.close()
+	def set_parameters(self): 
 		if not self._is_connected:
 			return
 		self.set_span(int(self.params["SA Tiny freq span (MHz)"]*1e6))
@@ -310,7 +311,7 @@ if __name__=="__main__":
 	sa_tiny = SpectrumAnalyzerTiny(params = {})
 	# sa_tiny.set_span(5000000)
 	# sa_tiny.set_center(80000000)
-	sa_tiny.set_params()
+	sa_tiny.set_parameters()
 	## Get the trace
 	freq, data = sa_tiny.get_trace()
 	power = 10**(data/10)/1000
