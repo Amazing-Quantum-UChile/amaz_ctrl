@@ -86,7 +86,7 @@ class ElliptecRotationStage(AmazingInstrument):
             + b'\n'
         )
         if not self.is_open:
-            self.open_port()
+            self.connect()
         self._conn.write(packet)
 
     def query(self, command, data=b''):

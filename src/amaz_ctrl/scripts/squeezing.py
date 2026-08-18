@@ -216,6 +216,9 @@ class Script(AmazingScript):
 
     def acquire(self)->dict:
         result={}
+        ## First check the pump power
+        self.laser.check_pump_power()
+        result["Pump Power (mW)"] = self.laser.get_pump_power()
         ## trigg the measurement of the agilent
         self.sa_agilent.trigg()
         # self.log.info("Reading squeezing...")
@@ -223,12 +226,14 @@ class Script(AmazingScript):
         
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
         result = self.measure_linewidth(result)
-        return result
         # result = self.get_intensity_spectrum(result)
         # freq, ampli = self.sa_agilent.get_trace()
         # df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
         # df.to_csv(self.run_prefix+"linewidth_raw.csv")
         ## Other parameter measurements
+        
+        return result
+
         result = self.scope_rigol4.measure(result)
         # result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
         try:

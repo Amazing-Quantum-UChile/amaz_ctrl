@@ -196,7 +196,6 @@ class Laser(AmazingInstrument):
             return
         if initialize_memory:
             self.last_positions = []
-        print(self.pump_rotation.is_open)
         pump_power = self.get_pump_power()
         target_power = self.params["laser target pump power (mW)"]
         tol = np.abs(self.params["laser pump tolerance (mW)"])
