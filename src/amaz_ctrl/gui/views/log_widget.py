@@ -93,9 +93,17 @@ class LogWidget(QtWidgets.QGroupBox):
 
     def _append_log(self, message:str, level="INFO"):
         """Add a message to the log."""
+        ## check if the user is at the maximum of the scroll bar (if yers, we will automatically decrease)
+        scrollbar = self.console.verticalScrollBar()
+        at_bottom = scrollbar.value() == scrollbar.maximum()
+
+        ## add logs
         formatted_log = self.format_log(message, level)
         self.console.appendHtml(formatted_log)
-        self.console.moveCursor(QtGui.QTextCursor.End)
+
+        ## move the scrollbar
+        if at_bottom:
+            scrollbar.setValue(scrollbar.maximum())
         
     def _append_many_log(self, list_of_logs:list):
         """_summary_
@@ -107,12 +115,23 @@ class LogWidget(QtWidgets.QGroupBox):
         """
         if not list_of_logs:
             return
+
+        ## check if the user is at the maximum of the scroll bar (if yers, we will automatically decrease)
+        scrollbar = self.console.verticalScrollBar()
+        at_bottom = scrollbar.value() == scrollbar.maximum()
+
+        ## add logs
         formatted_log = ""
         for log in list_of_logs:
             formatted_log=self.format_log(log["message"],
                                            log["level"])+"\n"
             self.console.appendHtml(formatted_log)
-        self.console.moveCursor(QtGui.QTextCursor.End)
+        
+
+        ## move the scrollbar
+        if at_bottom:
+            scrollbar.setValue(scrollbar.maximum())
+            self.console.moveCursor(QtGui.QTextCursor.End)
 
     def format_log(self, message, level):
         ## set color
