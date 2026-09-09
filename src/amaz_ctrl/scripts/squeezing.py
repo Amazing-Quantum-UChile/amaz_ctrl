@@ -128,32 +128,34 @@ class Script(AmazingScript):
         result["U(Gamma) (kHz)"] = perr[2] *1000
         error = np.sum((lorentzian(freq, *popt)-ampli)**2)
         result["Fit error"] = error
-        if self.j_run %30 ==0:
-            fig,ax = plt.subplots()
-            ax.plot(freq, ampli, "o", color ="C0", label = "Data")
-            ax.plot(freq, lorentzian(freq, *popt), color = "C0", label = "Fit")
-            ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--", label = "Guess")
-            ax.axvspan(central_freq-mask_DX, central_freq+mask_DX, color = "red", alpha = .2)
-            ax.set_xlabel("Frequency (MHz)")
-            ax.set_ylabel("Amplitude (a.u.)")
-            ax.set_ylim(top = max(np.max(ampli[mask])*1.4, popt[1])*1.15, bottom = 0)
-            ax.legend()
-            plt.tight_layout()
-            fig.savefig(self.run_prefix+"beating_fig.png")
-            plt.close(fig)
+        # if self.j_run %30 ==0:
+        #     fig,ax = plt.subplots()
+        #     ax.plot(freq, ampli, "o", color ="C0", label = "Data")
+        #     ax.plot(freq, lorentzian(freq, *popt), color = "C0", label = "Fit")
+        #     ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--", label = "Guess")
+        #     ax.axvspan(central_freq-mask_DX, central_freq+mask_DX, color = "red", alpha = .2)
+        #     ax.set_xlabel("Frequency (MHz)")
+        #     ax.set_ylabel("Amplitude (a.u.)")
+        #     ax.set_ylim(top = max(np.max(ampli[mask])*1.4, popt[1])*1.15, bottom = 0)
+        #     ax.legend()
+        #     plt.tight_layout()
+        #     fig.savefig(self.run_prefix+"beating_fig.png")
+        #     plt.close(fig)
         return result
     
 
-    def start_intensity_spectrum_measurement(self):
-        self.sa_agilent.instr.write(":INITiate:CONTinuous OFF")
-        self.sa_agilent.instr.write("INIT:CONT OFF")
-        self.sa_agilent.instr.write("AVER:COUN 500")
-        self.sa_agilent.instr.write("AVER:STAT ON")
-        self.sa_agilent.instr.write(":INITiate")
+    # def start_intensity_spectrum_measurement(self):
+    #     self.sa_agilent.instr.write(":INITiate:CONTinuous OFF")
+    #     self.sa_agilent.instr.write("INIT:CONT OFF")
+    #     self.sa_agilent.instr.write("AVER:COUN 500")
+    #     self.sa_agilent.instr.write("AVER:STAT ON")
+    #     self.sa_agilent.instr.write(":INITiate")
 
     
 
     def get_intensity_spectrum(self, result):
+        if not self.exp_params["SA Agil connected"]:
+            return result
         freq, ampli = self.sa_agilent.get_trace()
         ### save raw data
         df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
@@ -210,8 +212,8 @@ class Script(AmazingScript):
         measured_sqz=10*np.log10(noise_power / shot_noise_watts)
         result["Squeezing (dB)"] = measured_sqz
         result["Noise Power (dB)"] = WattstodBm(noise_power)
-        if self.j_run % 10 ==0:
-            self.log.info(f"Measured Squeezing: {measured_sqz:.03f} dB")
+        
+        self.log.info(f"Measured Squeezing @ real {self._j_run}: {measured_sqz:.03f} dB")
         return result
 
     def acquire(self)->dict:
@@ -226,13 +228,9 @@ class Script(AmazingScript):
         
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
         result = self.measure_linewidth(result)
-        # result = self.get_intensity_spectrum(result)
-        # freq, ampli = self.sa_agilent.get_trace()
-        # df = pd.DataFrame({"Freq":freq, "Ampli":ampli})
-        # df.to_csv(self.run_prefix+"linewidth_raw.csv")
-        ## Other parameter measurements
+        result = self.get_intensity_spectrum(result)
+  
         
-        return result
 
         result = self.scope_rigol4.measure(result)
         # result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()

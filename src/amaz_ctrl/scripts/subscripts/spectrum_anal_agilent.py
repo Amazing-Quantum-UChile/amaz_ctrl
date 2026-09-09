@@ -162,7 +162,6 @@ class SpectrumAnalyzerAgilent(AmazingInstrument):
             is_still_measuring =(opc_value >> 4) & 1
             if not is_still_measuring:
                 timeout = True
-            
             else:
                 time.sleep(1.)
             if time.time() - t >self.timeout:

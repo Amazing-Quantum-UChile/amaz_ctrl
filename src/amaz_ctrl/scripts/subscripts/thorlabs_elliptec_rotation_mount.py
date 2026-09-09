@@ -64,6 +64,7 @@ class ElliptecRotationStage(AmazingInstrument):
         if self.params["laser lock pump power"]:
             self._conn.port = self.port
             self._conn.open()
+            self.log.info("Connection to Elliptec Rotation mount succeeded.")
         return 
     
     def disconnect(self):

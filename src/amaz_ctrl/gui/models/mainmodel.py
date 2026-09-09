@@ -239,7 +239,6 @@ class Model():
         """
         self._default_scan_dic = {}
         self._parameters_to_be_scan = {}
-        self._parameters_to_be_saved = {}
         for key, parameter in self._parameter_dic.items():
             self._default_scan_dic[key] = {}
             self._default_scan_dic[key]["start"] = parameter.scan_start
@@ -251,7 +250,7 @@ class Model():
                 else:
                     dx = parameter.get_step()
                     if not dx is None:
-                        self._parameters_to_be_scan[key] =[parameter.scan_steps + dx*i for i in range(parameter.scan_steps)]
+                        self._parameters_to_be_scan[key] =[parameter.scan_start + dx*i for i in range(parameter.scan_steps)]
                         
 
 

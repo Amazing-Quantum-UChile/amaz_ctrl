@@ -687,7 +687,9 @@ class AmazingScript():
             if isinstance(value, AmazingInstrument)
         ]
 
-    
+    def connect_instruments():
+        
+    def disconnect_instruments():
 if __name__ == "__main__":
     script = AmazingScript(exp_params_dir='/Users/victor/amaz_ctrl/src/amaz_ctrl/scripts')
     script.main()

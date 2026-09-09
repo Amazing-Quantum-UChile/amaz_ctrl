@@ -161,6 +161,7 @@ class Laser(AmazingInstrument):
             ## if the step was too large, just do a smaller step. 
             if np.abs(degs) > self.lock_pump_step_min:
                 self.rotate_pump_lambda(degs = degs / 1.5)
+                return
             pump_power = self.get_pump_power()
             target_power = self.params["laser target pump power (mW)"]
             msg = f"[ElliptecRotationStage]: The rotation mount Elliptec is currently at theta = {angle:.1f} and cannot move further. Indeed, its value must always remain between  45 and 90 degrees to ensure that we are in a positive slope region. We thus cannot reach the value of the power you want (P={target_power}mW) and the value will stay at {pump_power} mW. A possible explanation is that you lack power and hence you should reoptimize the fiber optimization power. An other possibility is that the HOME angle (i.e. the reference for the angle of the roation mount) does not match the maximum of the Malus law. In this case, you must set the HOME angle using the ELLO software (see the lab notebook week33 of 2026)."
@@ -204,16 +205,14 @@ class Laser(AmazingInstrument):
         if -tol < err < tol:
             self.log.debug("This value is within the accepted range ({} mW).".format(self.params["laser pump tolerance (mW)"]))
             if len(self.last_positions)>0:
-                self.log.info(f"The rotation stage succesfully changed the pump power after {len(self.last_positions)} steps.")
-            ## deconnect the rotation
-            if self.pump_rotation.is_open:
-                self.pump_rotation.close()
+                pos = self.last_positions[-1]
+                self.log.info(f"The rotation stage succesfully changed the pump power after {len(self.last_positions)} steps (now at {pos:.1f} deg).")
             return
+        if len(self.last_positions)==0:
+            self.log.info(f"The pump power error is too large by {err:.0f} mW. Starting to turn the waveplate.")
         ## We do not want to break the experiment because of this loop
         if len(self.last_positions)>self.params["laser lock pump power max iterations"]:
             self.log.warning(f"The difference between the pump power and its target value is {err:.0f} which is beyond the tolerance range. The servo loop stopped because the numer of iteration steps ({len(self.last_positions)}) is above the limit.")
-            if self.pump_rotation.is_open:
-                self.pump_rotation.close()
             return 
              
         ### We rotate the lambda to compensate the difference: minus sign because the slope is positive. 

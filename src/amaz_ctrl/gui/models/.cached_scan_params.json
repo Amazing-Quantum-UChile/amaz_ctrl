@@ -30,9 +30,9 @@
         "steps": 0
     },
     "laser target pump power (mW)": {
-        "start": 0.0,
-        "stop": 9.0,
-        "steps": 10
+        "start": 200.0,
+        "stop": 450.0,
+        "steps": 11
     },
     "laser pump tolerance (mW)": {
         "start": 0.0,
