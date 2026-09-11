@@ -11,13 +11,15 @@ from amaz_ctrl.scripts.subscripts.scope_rigol2202A import ScopeRigol2202A
 from amaz_ctrl.scripts.subscripts.scope_rigolDS1104 import ScopeRigolDS1104
 from amaz_ctrl.scripts.subscripts.powermeter_thorlabs import PowerMeterThorlabsPM16
 from amaz_ctrl.scripts.subscripts.spectrum_anal_tiny import  SpectrumAnalyzerTiny
+from amaz_ctrl.scripts.subscripts.arduino import  Arduino
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import pyvisa
 from amaz_ctrl.tools.misc import get_windows_pyvisa_ressuorce_manager
 rm = get_windows_pyvisa_ressuorce_manager()
 import pandas as pd
-
+from amaz_ctrl.scripts.subscripts.thorlabs_elliptec_rotation_mount import ElliptecRotationStage
+from amaz_ctrl.scripts.subscripts.wfg_rigol import RigolDSG815, RigolDSG830
 
 class Script(AmazingScript):
     """A Script that inherits the AmazingScript possesses the following attributs:
@@ -45,9 +47,22 @@ class Script(AmazingScript):
         self.sa_rigol = SpectrumAnalyzerRigol(params=self.exp_params)
         self.scope_rigol2 = ScopeRigol2202A(params=self.exp_params)
         self.scope_rigol4 = ScopeRigolDS1104(params= self.exp_params)
-        self.laser = Laser(params=self.exp_params, parent=self)
+        self.rigoldsg830 = RigolDSG830(params= self.exp_params)
+        self.rigoldsg815 = RigolDSG815(params= self.exp_params)
+        self.pump_rotation = ElliptecRotationStage(self.exp_params,
+                                                port = self.exp_params["laser lock pump power USB address"])
+        self.arduino = Arduino(params= self.exp_params)
+        self.laser = Laser(params=self.exp_params, 
+                           parent=self, 
+                           rigoldsg830 = self.rigoldsg830,
+                           rigoldsg815 = self.rigoldsg815,
+                           pump_rotation = self.pump_rotation,
+                           arduino = self.arduino,
+                           scope=self.scope_rigol2
+                           )
         self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
         self.sa_tiny = SpectrumAnalyzerTiny(params=self.exp_params)
+
 
 
     def connect_sensors(self):
@@ -281,5 +296,5 @@ if __name__ == "__main__":
     script = Script()
     # scanned_params_dict = script.load_scanned_parameters()
     # list_of_experiments = script.build_list_of_experiments(scanned_params_dict)
-    script.main()
+    # script.main()
 

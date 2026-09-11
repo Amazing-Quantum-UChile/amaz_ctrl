@@ -156,7 +156,6 @@ class ScriptServer(AmazingServer):
             return
 
     def _run_script(self, **kwargs):
-        print("Here, something")
         ## 1. Checks: script is uploaded? Is already running? Has acquire method?
         if self.script is None:
             msg="No script to run. Please upload a script first."

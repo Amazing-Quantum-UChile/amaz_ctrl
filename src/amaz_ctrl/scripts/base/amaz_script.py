@@ -147,6 +147,7 @@ class AmazingScript():
             nruns = self._exp_params["No of realizations"]
             self.log.info(f"Starting experiment {i_exp+1}/{len(list_of_experiments)}  of sequence {self._proto_number} [{nruns} realizations].")
             self.start_experiment()
+        self.log.info("Starting to disconnect sensors.")
         self.disconnect_sensors()
         self._sensors_are_connected = False
         self.on_sequence_about_to_end()
@@ -570,8 +571,7 @@ class AmazingScript():
             self.log.critical(msg)
             self.log.warning("Stopping the acquisition because of this critical error.", exc_info=True)
             self.stop_acquisition()
-            ## we raise the error to show the problem
-            raise 
+            ## we raise the error to show the problem 
 
     def _acquire(self):
         try:
@@ -687,9 +687,7 @@ class AmazingScript():
             if isinstance(value, AmazingInstrument)
         ]
 
-    def connect_instruments():
-        
-    def disconnect_instruments():
+
 if __name__ == "__main__":
     script = AmazingScript(exp_params_dir='/Users/victor/amaz_ctrl/src/amaz_ctrl/scripts')
     script.main()

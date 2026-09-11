@@ -83,7 +83,6 @@ class PowerMeterThorlabsPM16(AmazingInstrument):
     def get_wavelength(self)->float:
         """Get the current wavelngth of the device. Relies on the getWavelength function 
             print(tlpmx_testB.getWavelength.__doc__) -> Int32 getWavelength(Int16, Double ByRef, UInt16)
-             
         """
         if not self.is_connected:
             self.show_not_connected_error()

@@ -1,4 +1,9 @@
 {
+    "laser lock frequency numerically": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
     "laser 2ph detuning (MHz)": {
         "start": 1.0,
         "stop": 20.0,
@@ -68,6 +73,46 @@
         "start": 0.0,
         "stop": 0.0,
         "steps": 0
+    },
+    "laser lock seed power": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "laser target seed power (uW)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser seed tolerance (uW)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock seed power minimal step (deg)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock seed power maximal step (deg)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock seed power slope (uW/deg)": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock seed power proportional PID": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "laser lock seed power max iterations": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
     },
     "Rb cell temperature (°C)": {
         "start": 0.0,
@@ -235,6 +280,21 @@
         "steps": 0
     },
     "SA Tiny Average trace No": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "arduino address": {
+        "start": 0.0,
+        "stop": 0.0,
+        "steps": 0
+    },
+    "arduino baudrate": {
+        "start": 0.0,
+        "stop": 9.0,
+        "steps": 10
+    },
+    "arduino timeout (s)": {
         "start": 0.0,
         "stop": 9.0,
         "steps": 10
