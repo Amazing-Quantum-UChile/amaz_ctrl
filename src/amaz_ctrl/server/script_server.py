@@ -28,6 +28,7 @@ from amaz_ctrl.tools.amaz_exception import ExperimentIsRunning, NoScriptToRun
 from amaz_ctrl.server.amaz_server import AmazingServer
 import importlib, sys, random,logging
 import Pyro5.api
+import multiprocessing
 import threading, os, datetime
 from amaz_ctrl.tools.amaz_logs import connect_logger_to_call_out, PseudoConsoleToLogger
 import pandas as pd
@@ -168,7 +169,13 @@ class ScriptServer(AmazingServer):
             self.log.error(msg)
             raise ExperimentIsRunning(msg)
         self.log.info(f"Running  {self._loaded_file} which was lastly modified at {self._script_last_modified}.")
-        
+
+
+        # self._process_running = multiprocessing.Process(
+        #     target=self.script.main,
+        #     kwargs=kwargs
+        # )
+        # self._process_running.start()
         self._thread_running = threading.Thread(target=self.script.main, kwargs=kwargs)
         self._thread_running.start()
 
@@ -263,7 +270,7 @@ class ScriptServer(AmazingServer):
 
 
 
-    
+
 if __name__ == "__main__":
     ## -. The Daemon is a background process that listens for incoming network requests on a given ip/port, here 9090 (otherwise Pyro5 would just pick a random one). 
     # Currently we set IP to "localhost" for single-machine testing.

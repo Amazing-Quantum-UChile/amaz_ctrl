@@ -106,12 +106,21 @@ class MainWindow(QtWidgets.QMainWindow):
         action_help.triggered.connect(self._on_help)
         self._actions["help"] = action_help
 
+        ## Action Terminate Script
+        action = QAction("Terminate Script process")
+        action.setStatusTip("Click to kill the multiprocess that handles the script.")
+        action.triggered.connect(self._terminate_script)
+        self._actions["terminate script"] = action
+
+
+
         
     def _setup_menubar(self):
         if sys.platform == "darwin":
             self.menuBar().setNativeMenuBar(False)
         self._setup_menu_file()
         self._setup_menu_help()
+        self._setup_menu_script()
     
     
 
@@ -120,7 +129,12 @@ class MainWindow(QtWidgets.QMainWindow):
         hm = m.addMenu("&Help")
         hm.addAction(self._actions["about"])
         return hm
-
+    
+    def _setup_menu_script(self):
+        m = self.menuBar()
+        sm = m.addMenu("&Script")
+        sm.addAction(self._actions["terminate script"])
+        return sm
 
     def _save(self):
         self._main_widget.save()
@@ -158,4 +172,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self._main_widget.plots_container.update_all_plots()
         except Exception as e:
             self.log.warning(f"The plots failed to reset. Error is {type(e).__name__}:{e}")
-        
+
+
+    def _terminate_script(self):
+        """kill the process running in the server
+        """
+        pass
+

@@ -57,31 +57,7 @@ class Script(AmazingScript):
                            scope =self.scope_rigol4
                            )
 
-    def connect_sensors(self):
-        # we get the list of instruments which inherit the AmazingInstrument class
-        instrs = self.get_instruments()
-        for instr in instrs:
-            self.log.info("Trying to connect to: {c}".format(
-                c=type(instr).__name__))
-            instr.connect()
-        return
     
-    def disconnect_sensors(self):
-        # we get the list of instruments which inherit the AmazingInstrument class
-        instrs = self.get_instruments()
-        for instr in instrs:
-            try:
-                instr.disconnect()
-            except Exception as e:
-                self.log.info("Deconnecting to: {c}".format(
-                                c=type(instr).__name__))
-                self.log.error("{t}: {e}. Failed to disconnect to the object {c}. Continuing the disconnection protocol.".format(
-                t=type(e).__name__, 
-                e=e,
-                c=type(instr).__name__
-            ))
-        return
-
     def prepare_experiment(self):
         # we get the list of instruments which inherit the AmazingInstrument class
         instrs = self.get_instruments()

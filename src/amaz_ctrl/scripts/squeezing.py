@@ -58,7 +58,7 @@ class Script(AmazingScript):
                            rigoldsg815 = self.rigoldsg815,
                            pump_rotation = self.pump_rotation,
                            arduino = self.arduino,
-                           scope=self.scope_rigol2
+                           scope=self.scope_rigol4
                            )
         self.power_meter = PowerMeterThorlabsPM16(params=self.exp_params)
         self.sa_tiny = SpectrumAnalyzerTiny(params=self.exp_params)

@@ -2,12 +2,14 @@ from amaz_ctrl.scripts.base.amaz_instrument import AmazingInstrument
 from amaz_ctrl.scripts.base.amaz_script import AmazingScript
 import scipy
 import matplotlib.pyplot as plt
-
+from pathlib import Path
 import pyvisa
 rm = pyvisa.ResourceManager()
 import numpy as np
 import time
-
+from datetime import datetime
+## This is the file in which we save the plots of the laser
+tmp_dir = Path(r"C:\Users\Carla Quantum Lab\Desktop\tmp")
 
 class Laser(AmazingInstrument):
     f_25P = 377.107385960 *10**12 + 1.7708439228 * 10 ** 9 # transición F=2 --> 5P_{1/2}
@@ -124,12 +126,13 @@ class Laser(AmazingInstrument):
         self.params["laser 2nd AOM frequency (MHz)"] = aom200 / 1e6
         self.rigoldsg830.set_frequency(freq_Hz = aom1500)
         self.rigoldsg815.set_frequency(freq_Hz = aom200)
-        self.lock_laser()
+        self.set_piezo_frequency()
+        self.arduino.lock_laser()
 
         
 
 
-    def lock_laser(self):
+    def set_piezo_frequency(self):
         maxi_detuning = 10 # MHz. If the detuning is less than 10 MHz, we lock the laser
         is_unlocked = False
         ## We get the trace from channel two.
@@ -137,34 +140,39 @@ class Laser(AmazingInstrument):
         detuning = get_frequency_detuning(np.array(t), np.array(v), 
                                           locking_peak = self.locking_transition_no)
         motor_moove = 0
+        detuning_list = [int(detuning)]
         while np.abs(detuning)>maxi_detuning:#we should be close to the transition by 10 MHz
             ## Based on week 37 of 2026, the number of steps per degree depends on the direction
-            self.log.info(f"We are away from the transition by {detuning:.0f}.")
+            self.log.info(f"We are away from the transition by {detuning:.0f} MHz.")
             ## If we are on the right,. we must do positive steps
             if detuning > 0:
                 steps = int(detuning/0.61*0.95) #  0.61 MHz/paso, proportional 
             else:
                 steps = int(detuning/0.55 * 0.95)
+            
             self.rotate_locking_freq_motor(steps)
-            time.sleep(.2)
+            time.sleep(.5)
             t, v = self.scope.get_trace(channel=2)
             fig, ax = plt.subplots()
             detuning = get_frequency_detuning(np.array(t), np.array(v), 
-                                                        locking_peak = self.locking_transition_no,
-                                                        ax = ax)
+                                            locking_peak = self.locking_transition_no,
+                                            ax = ax)
+            detuning_list.append(int(detuning))
             plt.tight_layout()
-            plt.savefig(r"C:\Users\Carla Quantum Lab\Desktop\tmp\locking"+str(motor_moove)+".png")
+            
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            filename = tmp_dir / f"locking{motor_moove}.png"
+            plt.savefig(filename)
             plt.close()
             
 
             
             motor_moove+=1
-            if motor_moove>10:
-                self.log.error("The laser failed to lock in less than 10 movements.")
+            if motor_moove>20:
+                
+                self.log.error(f"The laser failed to lock in less than 10 movements. The detuning list is [{detuning_list}].")
                 break
-
-
-        ## save the figure on the desktop
+        self.log.info(f"The laser succesfully locked after {motor_moove} moves. The measured detunings during the locking process is {detuning_list}.")
         
 
 
@@ -182,7 +190,7 @@ class Laser(AmazingInstrument):
         elif np.abs(steps)<minimal_step:
             self.log.debug(f"The command for the number of steps of the laser frequency is {steps} but it cannot turn by less than {minimal_step}.")
             steps = minimal_step * np.sign(steps)
-        
+        self.log.info(f"Rotating the motor by {steps} steps ({steps/2048*360:.0f} degs).")
         self.arduino.rotate_laser_frequency(steps)
         
 
@@ -404,27 +412,46 @@ def get_frequency_detuning(x, y, locking_peak = 2, ax = None):
     
 
     ## Now dist02 =  361.582 MHz
-
-    idx = sorted_peaks[locking_peak]
-    detuning = x[idx]
-    detuningMHz = detuning * 361.582 / dist02
-    xMHz = x * 361.582 / dist02
-    ## Now we look for the 0 crossing point by scanning neigbhours
-    idx_zero_cross = idx
-    y_value = y_smoothed[idx_zero_cross]
-    if y_value >0:
-         ## if positive, we go right i.e. we look for the 0 by mooving to the right
-         increment = 1
-    elif y_value<=0:
-         increment = -1
-    bandwidth = 20 # MHz
-    while np.abs(xMHz[idx_zero_cross] - detuningMHz) < 20 and y_value *y_smoothed[idx_zero_cross]>0:
-         idx_zero_cross += increment
-         
-    
-    zero_crossing = x[idx_zero_cross]
-    zero_crossing_MHz =(xMHz[idx_zero_cross-increment]  + xMHz[idx_zero_cross])/2
-
+    try:
+        idx = sorted_peaks[locking_peak]
+        detuning = x[idx]
+        detuningMHz = detuning * 361.582 / dist02
+        xMHz = x * 361.582 / dist02
+        ## Now we look for the 0 crossing point by scanning neigbhours
+        idx_zero_cross = idx
+        y_value = y_smoothed[idx_zero_cross]
+        if y_value >0:
+            ## if positive, we go right i.e. we look for the 0 by mooving to the right
+            increment = 1
+        elif y_value<=0:
+            increment = -1
+        bandwidth = 20 # MHz
+        while np.abs(xMHz[idx_zero_cross] - detuningMHz) < 20 and y_value *y_smoothed[idx_zero_cross]>0:
+            idx_zero_cross += increment
+        zero_crossing = x[idx_zero_cross]
+        zero_crossing_MHz =(xMHz[idx_zero_cross-increment]  + xMHz[idx_zero_cross])/2
+    except:
+        error = 1
+    if error > 0.05:
+        ## we do the plot and save it
+        fig, ax = plt.subplots()
+        axin = ax.inset_axes([.6,.7,.4,.3])
+        ax.plot(x, y, "C0")
+        axin.plot(x[1:], deriv)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ax.set_title("Problem locking the laser {}".format(now))
+        try:
+            [ax.annotate(str(i), (x[p+1], y_smoothed[p]), xytext=(5, 5),va="top", fontsize=8, textcoords="offset points") for i, p in enumerate(sorted_peaks)]
+            axin.scatter(x[sorted_peaks], deriv[sorted_peaks], 
+                                color = "black")
+            [axin.annotate(str(i), (x[p], deriv[p]), xytext=(5, 5),va="top", fontsize=7, textcoords="offset points") for i, p in enumerate(sorted_peaks)]
+        except:
+            pass
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        filename = tmp_dir / "PROBLEM-{}.png".format(datetime.now().strftime("%Y-%m-%d"))
+        plt.savefig(filename)
+        plt.close()
+        raise Exception(f"The relative distance between the three peaks is {dist01/dist02 } while it should be 1/2 (the crossover is at the middle). Please look at the graph in {filename} to see what was wrong.")
     if ax:
         x = xMHz
         ax.plot(x, y, "C0")
@@ -450,8 +477,8 @@ def get_frequency_detuning(x, y, locking_peak = 2, ax = None):
         ax.text(zero_crossing_MHz, 0, f"{int(zero_crossing_MHz)} MHz",
                         ha="right", va="top", fontsize=9, )
         
-    if error > 0.05:
-          raise Exception(f"The relative distance between the three peaks is {dist01/dist02 } while it should be 1/2 (the crossover is at the middle).")
+        
+    
     return zero_crossing_MHz
 
 if __name__=="__main__":

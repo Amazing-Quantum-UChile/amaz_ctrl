@@ -631,6 +631,44 @@ class AmazingScript():
             msg=f"{type(e).__name__}:{e}. This error was caught in the on_sequence_about_to_end method of the Script {self._script_fn}."
             self.log.error(msg, exc_info=True)
 
+    ##### DEFAULT METHODS
+    def get_instruments(self):
+        """return the attributs of the class which are object inheriting from the AmazingScript class"""
+        return [
+            value
+            for value in vars(self).values()
+            if isinstance(value, AmazingInstrument)
+        ]
+
+
+    def connect_sensors_default(self):
+        """lists the Amazing Instruments instanciated in the class and connect to them.
+        """
+        # we get the list of instruments which inherit the AmazingInstrument class
+        instrs = self.get_instruments()
+        for instr in instrs:
+            self.log.info("Trying to connect to: {c}".format(
+                c=type(instr).__name__))
+            instr.connect()
+        return
+    
+    def disconnect_sensors_default(self):
+        """lists the Amazing Instrument object among properties of the class and unconnect. 
+        """
+        # we get the list of instruments which inherit the AmazingInstrument class
+        instrs = self.get_instruments()
+        for instr in instrs:
+            try:
+                instr.disconnect()
+            except Exception as e:
+                # self.log.info("Deconnecting to: {c}".format(
+                #                 c=type(instr).__name__))
+                self.log.error("{t}: {e}. Failed to disconnect to the object {c}. Continuing the disconnection protocol.".format(
+                t=type(e).__name__, 
+                e=e,
+                c=type(instr).__name__
+            ))
+        return
     ###############################################################
     ######## FUNCTIONS TO BE REDEFINED IN DAUGHTER CLASS ##########
     ###############################################################
@@ -645,13 +683,17 @@ class AmazingScript():
     def connect_sensors(self):
         msg="AttributeError: The Script {name} does not have a " \
         "'connect_sensors' method. ".format(name=self._script_fn)+self._script_require_info
-        self.log.error(msg)
+        # self.log.error(msg)
+        self.log.info("Calling the default connect_sensor method.")
+        self.connect_sensors_default()
         # raise AttributeError(msg)
     
     def disconnect_sensors(self):
         msg="AttributeError: The Script {name} does not have a " \
         "'disconnect_sensors' method. ".format(name=self._script_fn)+self._script_require_info
-        self.log.error(msg)
+        # self.log.error(msg)
+        self.log.info("Calling the default disconnect_sensors method.")
+        self.disconnect_sensors_default()
         # raise AttributeError(msg)
 
     def acquire(self)->dict:
@@ -678,15 +720,7 @@ class AmazingScript():
         pass
 
 
-    ##### METHODS TO DEAL WITH AMAZING INSTRUMENTS
-    def get_instruments(self):
-        """return the attributs of the class which are object inheriting from the AmazingScript class"""
-        return [
-            value
-            for value in vars(self).values()
-            if isinstance(value, AmazingInstrument)
-        ]
-
+    
 
 if __name__ == "__main__":
     script = AmazingScript(exp_params_dir='/Users/victor/amaz_ctrl/src/amaz_ctrl/scripts')
