@@ -1,16 +1,21 @@
 from amaz_ctrl.tools.amaz_logs import set_console_log
-import logging
+import logging, json
+from pathlib import Path
+
 class AmazingInstrument():
     _params ={}
     def_params ={}
     instr = None
+    _conf = {  
+        }
     
-    def __init__(self,params, log_level="INFO"):
+    def __init__(self,params, log_level="DEBUG"):
         ## Set up logs
         LOG_NAME = "INSTR"
         self.log = logging.getLogger(LOG_NAME)
         set_console_log(logger_name = LOG_NAME, log_level=log_level)
         self.params = params
+        # self.load_configuration()
 
         
     @property
@@ -55,7 +60,69 @@ class AmazingInstrument():
             self.connect()
         return self.instr.query(cmd)
 
+    @property
+    def _configuration_file(self) -> Path:
+        """
+        Return the path to the configuration file.
 
+        The configuration file is located in:
+            <class_file_directory>/conf/<ClassName>.json
+        """
+        class_file = Path(__file__).resolve()
+        conf_dir = class_file.parent / "conf"
+
+        return conf_dir / f"{self.__class__.__name__}.json"
+
+    def load_configuration(self) -> None:
+        """
+        Load the configuration from the JSON file.
+
+        The configuration directory and file are created automatically
+        if they do not exist.
+
+        Values loaded from the JSON file override the default values
+        defined in self._conf.
+        """
+        configuration_file = self._configuration_file
+
+        # Create the configuration directory if necessary.
+        configuration_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create the configuration file with default values if necessary.
+        if not configuration_file.exists():
+            self.save_configuration()
+            return
+
+        try:
+            with configuration_file.open("r", encoding="utf-8") as file:
+                configuration = json.load(file)
+
+            if not isinstance(configuration, dict):
+                raise ValueError("Configuration file must contain a JSON object.")
+
+            # Keep defaults and override them with values from the file.
+            self._conf.update(configuration)
+            self.save_configuration()
+
+        except (json.JSONDecodeError, OSError, ValueError) as error:
+            raise RuntimeError(
+                f"Unable to load configuration from '{configuration_file}'."
+            ) from error
+    def save_configuration(self) -> None:
+        """
+        Save the current configuration to the JSON file.
+        """
+        configuration_file = self._configuration_file
+
+        configuration_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with configuration_file.open("w", encoding="utf-8") as file:
+            json.dump(
+                self._conf,
+                file,
+                indent=4,
+                ensure_ascii=False,
+            )
     #### Methods to be defined in daughter class
     def connect(self):
         self.log.error(f"The Device {self.__class__.__name__} does not have a connect function.")

@@ -6,10 +6,11 @@ from pathlib import Path
 import pyvisa
 rm = pyvisa.ResourceManager()
 import numpy as np
-import time
+import time, os
 from datetime import datetime
 ## This is the file in which we save the plots of the laser
 tmp_dir = Path(r"C:\Users\Carla Quantum Lab\Desktop\tmp")
+PREFIX = "locking"
 
 class Laser(AmazingInstrument):
     f_25P = 377.107385960 *10**12 + 1.7708439228 * 10 ** 9 # transición F=2 --> 5P_{1/2}
@@ -47,18 +48,24 @@ class Laser(AmazingInstrument):
         "laser lock seed power max iterations":10
         }
     seed_last_steps=[]
+    _conf={
+        "laser lock pump power minimal step (deg)":0.5,
+        "laser lock pump power maximal step (deg)":10,
+        "laser lock pump power slope (mW/deg)":13.3,
+        "laser lock pump power last calibration":0,
+        "Angle values (deg)":[],
+        "Pump power":[]
+    }
 
     def __init__(self, 
                  params:dict, 
-                 parent:AmazingScript, 
                  rigoldsg830: AmazingInstrument,
                  rigoldsg815:AmazingInstrument,
                  pump_rotation:AmazingInstrument,
                  arduino:AmazingInstrument,
                  scope:AmazingInstrument,
-                 log_level="INFO"):
+                 log_level="DEBUG"):
         super().__init__(params, log_level)
-        self.parent = parent #this is the script class so that we have access to the methods of the script class
         self.rigoldsg815 = rigoldsg815
         self.rigoldsg830 = rigoldsg830
         self.pump_rotation = pump_rotation
@@ -101,8 +108,6 @@ class Laser(AmazingInstrument):
 
     def update_photon_detuning_from_device_frequency(self):
         """update the parameter dictionary using the locking transition and the frequency of the AOM."""
-        
-
         aom1500 = self.rigoldsg830.get_frequency()
         aom200 = self.rigoldsg815.get_frequency()
         self.params["laser 1st AOM frequency (MHz)"] = aom1500 / 1e6
@@ -114,36 +119,72 @@ class Laser(AmazingInstrument):
 
     def set_laser_frequency(self):
         self.arduino.unlock_laser()
+        time.sleep(.3)
         ### Set frequency of the WFG
         delta_2ph = self.params["laser 2ph detuning (MHz)"] * 1e6
         delta_1ph = self.params["laser 1ph detuning (MHz)"] * 1e6
         aom1500 = (delta_2ph + self.f_12)/2
         aom200 = (+self.locking_frequency - delta_1ph -self.f_25P + aom1500  )/2   
-        self.log.info(f"Setting the AOM frequencies to {aom200/1e6:.0f} MHz and {aom1500/1e6:.0f} MHz.")
+        self.log.info(f"LASER-LOCK: Setting the AOM frequencies to {aom200/1e6:.0f} MHz and {aom1500/1e6:.0f} MHz.")
         aom1500 = int(aom1500)
         aom200 = int(aom200)
         self.params["laser 1st AOM frequency (MHz)"] = aom1500 / 1e6
         self.params["laser 2nd AOM frequency (MHz)"] = aom200 / 1e6
+        # aom200 = 80000000
         self.rigoldsg830.set_frequency(freq_Hz = aom1500)
         self.rigoldsg815.set_frequency(freq_Hz = aom200)
+        self.update_photon_detuning_from_device_frequency()
         self.set_piezo_frequency()
         self.arduino.lock_laser()
+        time.sleep(.3)
 
         
+    def measure_frequency_detuning(self, max_retry = 3, ax = None):
+        """Query to the scope the absorption spectrum and finds out the detuning of the laser. 
 
+        Args:
+            max_retry (int, optional): the number of time we retry when failing to measure the detuning. Defaults to 3.
+            ax (_type_, optional): plt.axis, the ax object on which to draw the figure if needed. Defaults to None.
+
+        Returns:
+            _type_: the detuning in MHz
+        """
+        try_number = 0
+        while try_number<max_retry:        
+            try_number+=1
+            try:
+                t, v = self.scope.get_trace(channel=2)
+                detuning = get_frequency_detuning(np.array(t), np.array(v), 
+                                                    locking_peak = self.locking_transition_no,
+                                                    ax = ax)
+                return detuning
+            except Exception as e:
+                self.log.info(f"LASER-LOCK: A problem occured when measuring the absorption spectrum. Try number {try_number}/{max_retry}.")
+                self.arduino.unlock_laser()
+                time.sleep(.2)
+        t, v = self.scope.get_trace(channel=2)
+        detuning = get_frequency_detuning(np.array(t), np.array(v), 
+                                            locking_peak = self.locking_transition_no, ax = ax)
+        return detuning
+        
 
     def set_piezo_frequency(self):
         maxi_detuning = 10 # MHz. If the detuning is less than 10 MHz, we lock the laser
         is_unlocked = False
         ## We get the trace from channel two.
-        t, v = self.scope.get_trace(channel=2)
-        detuning = get_frequency_detuning(np.array(t), np.array(v), 
-                                          locking_peak = self.locking_transition_no)
+        detuning = self.measure_frequency_detuning(max_retry=3)
+
+        
         motor_moove = 0
         detuning_list = [int(detuning)]
+
+        ## clean up the tmp directory
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        for file in os.listdir(tmp_dir):
+            os.remove(tmp_dir / file)
         while np.abs(detuning)>maxi_detuning:#we should be close to the transition by 10 MHz
             ## Based on week 37 of 2026, the number of steps per degree depends on the direction
-            self.log.info(f"We are away from the transition by {detuning:.0f} MHz.")
+            self.log.info(f"LASER-LOCK:We are away from the transition by {detuning:.0f} MHz.")
             ## If we are on the right,. we must do positive steps
             if detuning > 0:
                 steps = int(detuning/0.61*0.95) #  0.61 MHz/paso, proportional 
@@ -152,16 +193,14 @@ class Laser(AmazingInstrument):
             
             self.rotate_locking_freq_motor(steps)
             time.sleep(.5)
-            t, v = self.scope.get_trace(channel=2)
+            
             fig, ax = plt.subplots()
-            detuning = get_frequency_detuning(np.array(t), np.array(v), 
-                                            locking_peak = self.locking_transition_no,
-                                            ax = ax)
+            detuning = self.measure_frequency_detuning(max_retry=3, ax = ax)
             detuning_list.append(int(detuning))
             plt.tight_layout()
             
-            tmp_dir.mkdir(parents=True, exist_ok=True)
-            filename = tmp_dir / f"locking{motor_moove}.png"
+            
+            filename = tmp_dir / f"{PREFIX}{motor_moove}.png"
             plt.savefig(filename)
             plt.close()
             
@@ -170,9 +209,9 @@ class Laser(AmazingInstrument):
             motor_moove+=1
             if motor_moove>20:
                 
-                self.log.error(f"The laser failed to lock in less than 10 movements. The detuning list is [{detuning_list}].")
+                self.log.error(f"LASER-FREQ:The laser failed to lock in less than 10 movements. The detuning list is [{detuning_list}].")
                 break
-        self.log.info(f"The laser succesfully locked after {motor_moove} moves. The measured detunings during the locking process is {detuning_list}.")
+        self.log.info(f"LASER-FREQ:The laser succesfully locked after {motor_moove} moves. The measured detunings during the locking process is {detuning_list}.")
         
 
 
@@ -185,12 +224,12 @@ class Laser(AmazingInstrument):
         steps = int(steps)
         ## Check that the angle is neither too large nor too small.
         if np.abs(steps)> maximal_step:
-            self.log.debug(f"The command for the number of steps of the laser frequency is {steps} but it cannot turn by more than {maximal_step}.")
+            self.log.debug(f"LASER-FREQ:The command for the number of steps of the laser frequency is {steps} but it cannot turn by more than {maximal_step}.")
             steps = maximal_step * np.sign(steps)
         elif np.abs(steps)<minimal_step:
-            self.log.debug(f"The command for the number of steps of the laser frequency is {steps} but it cannot turn by less than {minimal_step}.")
+            self.log.debug(f"LASER-FREQ:The command for the number of steps of the laser frequency is {steps} but it cannot turn by less than {minimal_step}.")
             steps = minimal_step * np.sign(steps)
-        self.log.info(f"Rotating the motor by {steps} steps ({steps/2048*360:.0f} degs).")
+        self.log.info(f"LASER-FREQ:Rotating the motor by {steps} steps ({steps/2048*360:.0f} degs).")
         self.arduino.rotate_laser_frequency(steps)
         
 
@@ -218,24 +257,24 @@ class Laser(AmazingInstrument):
             angle = self.pump_rotation.angle
             self.pump_rotation_history = [{"Time":time.time(), "Angle (deg)":angle}]
             if angle >90 or angle < 45:
-                self.log.warning(f"The pump rotation mount was at {angle} which is outside the authorized range [45,90]. We moove it to 80 degrees.")
+                self.log.warning(f"PUMP-POW:The pump rotation mount was at {angle} which is outside the authorized range [45,90]. We moove it to 80 degrees.")
                 delta = 80 - angle
                 self.pump_rotation.move_by(delta)
                 time.sleep(2.)
+
     def get_pump_power(self):
         try:
             # calibration done in week 32 of 2026.
-            return 92.7*np.mean(self.parent.scope_rigol4.get_voltage_trace(channel = 1)) - 7
+            return 92.7*np.mean(self.scope.get_voltage_trace(channel = 1)) - 7
         except Exception as e:
-            self.log.error("{t}: {e}. Failed to measure the pump power. Not servo looping the pump power.".format(
+            self.log.error("PUMP-POW:{t}: {e}. Failed to measure the pump power. Not servo looping the pump power.".format(
                 t=type(e).__name__, 
                 e=e,
             ))
             self.params["laser lock pump power"] = False
             self.lock_pump = self.params["laser lock pump power"]
             return 0
-
-    
+ 
         
     def rotate_pump_lambda(self, degs = 1.):
         """
@@ -247,10 +286,10 @@ class Laser(AmazingInstrument):
 
         ## Check that the angle is neither too large nor too small.
         if np.abs(degs)> self.lock_pump_step_max:
-            self.log.debug(f"The rotation stage command angle displacement is {degs} but it cannot turn by more than {self.lock_pump_step_max}.")
+            self.log.debug(f"PUMP-POW:The rotation stage command angle displacement is {degs} but it cannot turn by more than {self.lock_pump_step_max}.")
             degs = self.lock_pump_step_max * np.sign(degs)
         if np.abs(degs)< self.lock_pump_step_min:
-            self.log.debug(f"The rotation stage command angle displacement is {degs} but it cannot turn by less than {self.lock_pump_step_min}.")
+            self.log.debug(f"PUMP-POW:The rotation stage command angle displacement is {degs} but it cannot turn by less than {self.lock_pump_step_min}.")
             degs = self.lock_pump_step_min * np.sign(degs)
         ## check if the final angle belongs to the allowed range [45, 90]
         new_angle =  angle + degs 
@@ -268,7 +307,7 @@ class Laser(AmazingInstrument):
             self.lock_pump = self.params["laser lock pump power"]
             return
         ## If everything is OK, we turn the rotation stage
-        self.log.debug(f"Moving by {degs:.2f} degrees to reach {new_angle:.2f} deg.")
+        self.log.debug(f"PUMP-POW:Moving by {degs:.2f} degrees to reach {new_angle:.2f} deg.")
         self.pump_rotation.move_by(degs)
         self.last_positions.append(new_angle)
         ## We need to wait a bit, like .5 seconds
@@ -286,6 +325,32 @@ class Laser(AmazingInstrument):
         #         self.log.warning(f"It seems the pump rotation did not mooved in {timeout} second. That is weird. Here is the recorded position {power_evol} and {posi_evolution}.")
         #         break
         
+    def calibrate_pump_power(self):
+
+        self.load_configuration()
+
+        self.log.info(f"Last configuration was {round((time.time() - self._conf['laser lock pump power last calibration'])/(60*60*24))} days ago. Calibrating the Pump power. Please wait, this can take a while.")
+        ## Set the pump rotation to home
+        self.pump_rotation.home()
+        time.sleep(1.5)
+        power_list = []
+        angle_list = []
+        deg_step = 3
+        for deg in range(0, 130, deg_step):
+            
+            try:
+                angle_list.append(round(self.pump_rotation.angle, 2)%360)
+                power_list.append(self.get_pump_power())
+                self.log.debug(f"Angle: {angle_list[-1]}. Power: {power_list[-1]}")
+                self.pump_rotation.move_by(deg_step)
+            except Exception as e:
+                self.log.warning(e)
+            time.sleep(1.)
+            
+        self._conf["laser lock pump power last calibration"] = time.time()
+        self._conf[ "Angle values (deg)"] = angle_list
+        self._conf["Pump power"] = power_list
+        self.save_configuration()
 
     def check_pump_power(self, initialize_memory = True):
         """check if the pump power is different from the necesatry power. If initialize_memory is True, it will keep tracks from this time to the following mooves."""
@@ -297,18 +362,18 @@ class Laser(AmazingInstrument):
         target_power = self.params["laser target pump power (mW)"]
         tol = np.abs(self.params["laser pump tolerance (mW)"])
         err = pump_power - target_power
-        self.log.debug(f"The difference between the pump power and its target value is {err:.0f} mW.") 
+        self.log.debug(f"PUMP-POW:The difference between the pump power and its target value is {err:.0f} mW.") 
         if -tol < err < tol:
-            self.log.debug("This value is within the accepted range ({} mW).".format(self.params["laser pump tolerance (mW)"]))
+            self.log.debug("PUMP-POW:This value is within the accepted range ({} mW).".format(self.params["laser pump tolerance (mW)"]))
             if len(self.last_positions)>0:
                 pos = self.last_positions[-1]
-                self.log.info(f"The rotation stage succesfully changed the pump power after {len(self.last_positions)} steps (now at {pos:.1f} deg).")
+                self.log.info(f"PUMP-POW:The rotation stage succesfully changed the pump power after {len(self.last_positions)} steps (now at {pos:.1f} deg).")
             return
         if len(self.last_positions)==0:
-            self.log.info(f"The pump power error is too large by {err:.0f} mW. Starting to turn the waveplate.")
+            self.log.info(f"PUMP-POW:The pump power error is too large by {err:.0f} mW. Starting to turn the waveplate.")
         ## We do not want to break the experiment because of this loop
         if len(self.last_positions)>self.params["laser lock pump power max iterations"]:
-            self.log.warning(f"The difference between the pump power and its target value is {err:.0f} which is beyond the tolerance range. The servo loop stopped because the numer of iteration steps ({len(self.last_positions)}) is above the limit.")
+            self.log.warning(f"PUMP-POW:The difference between the pump power and its target value is {err:.0f} which is beyond the tolerance range. The servo loop stopped because the numer of iteration steps ({len(self.last_positions)}) is above the limit.")
             return 
              
         ### We rotate the lambda to compensate the difference: minus sign because the slope is positive. 
@@ -336,18 +401,18 @@ class Laser(AmazingInstrument):
         target_power = self.params["laser target seed power (uW)"]
         tol = np.abs(self.params["laser seed tolerance (uW)"])
         err = seed_power - target_power
-        self.log.debug(f"The difference between the seed power and its target value is {err:.0f} uW.") 
+        self.log.debug(f"SEED-POW:The difference between the seed power and its target value is {err:.0f} uW.") 
         if -tol < err < tol:
-            self.log.debug("This value is within the accepted range ({} uW).".format(self.params["laser seed tolerance (uW)"]))
+            self.log.debug("SEED-POW:This value is within the accepted range ({} uW).".format(self.params["laser seed tolerance (uW)"]))
             if len(self.seed_last_steps)>0:
                 pos = self.seed_last_steps[-1]
-                self.log.info(f"The rotation stage succesfully changed the seed power after {len(self.seed_last_steps)} steps (now at {pos:.1f} deg).")
+                self.log.info(f"SEED-POW:The rotation stage succesfully changed the seed power after {len(self.seed_last_steps)} steps (now at {pos:.1f} deg).")
             return
         if len(self.seed_last_steps)==0:
-            self.log.info(f"The seed power error is too large by {err:.0f} uW. Starting to turn the waveplate.")
+            self.log.info(f"SEED-POW:The seed power error is too large by {err:.0f} uW. Starting to turn the waveplate.")
         ## We do not want to break the experiment because of this loop
         if len(self.seed_last_steps)>self.params["laser lock seed power max iterations"]:
-            self.log.warning(f"The difference between the seed power and its target value is {err:.0f} which is beyond the tolerance range. The servo loop stopped because the numer of iteration steps ({len(self.seed_last_steps)}) is above the limit. The steps movements are {self.seed_last_steps}.")
+            self.log.warning(f"SEED-POW:The difference between the seed power and its target value is {err:.0f} which is beyond the tolerance range. The servo loop stopped because the numer of iteration steps ({len(self.seed_last_steps)}) is above the limit. The steps movements are {self.seed_last_steps}.")
             return 
                 
         ### We rotate the lambda to compensate the difference: minus sign because we lock on a positive slope. 
@@ -361,10 +426,10 @@ class Laser(AmazingInstrument):
             """
             ## Check that the angle is neither too large nor too small.
             if np.abs(degs)> self.lock_seed_step_max:
-                self.log.debug(f"The rotation stage command angle displacement is {degs} but it cannot turn by more than {self.lock_seed_step_max}.")
+                self.log.debug(f"SEED-POW:The rotation stage command angle displacement is {degs} but it cannot turn by more than {self.lock_seed_step_max}.")
                 degs = self.lock_seed_step_max * np.sign(degs)
             if np.abs(degs)< self.lock_seed_step_min:
-                self.log.debug(f"The rotation stage command angle displacement is {degs} but it cannot turn by less than {self.lock_seed_step_min}.")
+                self.log.debug(f"SEED-POW:The rotation stage command angle displacement is {degs} but it cannot turn by less than {self.lock_seed_step_min}.")
                 degs = self.lock_seed_step_min * np.sign(degs)
             ### Based on week 37 of 2026, the number of steps per degree depends on the direction
             if degs > 0 :
@@ -448,10 +513,10 @@ def get_frequency_detuning(x, y, locking_peak = 2, ax = None):
         except:
             pass
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        filename = tmp_dir / "PROBLEM-{}.png".format(datetime.now().strftime("%Y-%m-%d"))
+        filename = tmp_dir / "PROBLEM-{}.png".format(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
         plt.savefig(filename)
         plt.close()
-        raise Exception(f"The relative distance between the three peaks is {dist01/dist02 } while it should be 1/2 (the crossover is at the middle). Please look at the graph in {filename} to see what was wrong.")
+        raise Exception(f"LASER-FREQ:The relative distance between the three peaks is {dist01/dist02 } while it should be 1/2 (the crossover is at the middle). Please look at the graph in {filename} to see what was wrong.")
     if ax:
         x = xMHz
         ax.plot(x, y, "C0")
@@ -476,8 +541,6 @@ def get_frequency_detuning(x, y, locking_peak = 2, ax = None):
                             color = "black")
         ax.text(zero_crossing_MHz, 0, f"{int(zero_crossing_MHz)} MHz",
                         ha="right", va="top", fontsize=9, )
-        
-        
     
     return zero_crossing_MHz
 
@@ -490,5 +553,25 @@ if __name__=="__main__":
     fpath = os.path.abspath(os.path.join(script_dir, "..", "exp_params.json"))
     with open(fpath, 'r', encoding='utf-8') as file:
         exp_params = json.load(file)
-    laser = Laser(params=exp_params)
-    laser.update_photon_detuning_from_device_frequency()
+    from amaz_ctrl.scripts.subscripts.laser import Laser
+    from amaz_ctrl.scripts.subscripts.scope_rigolDS1104 import ScopeRigolDS1104
+    from amaz_ctrl.scripts.subscripts.powermeter_thorlabs import PowerMeterThorlabsPM16
+    from amaz_ctrl.scripts.subscripts.arduino import  Arduino
+    from amaz_ctrl.scripts.subscripts.thorlabs_elliptec_rotation_mount import ElliptecRotationStage
+    from amaz_ctrl.scripts.subscripts.wfg_rigol import RigolDSG815, RigolDSG830
+    ### Check the pump 
+    scope_rigol4 = ScopeRigolDS1104(params= exp_params)
+    pump_rotation = ElliptecRotationStage(exp_params,
+                                            port = exp_params["laser lock pump power USB address"])
+    pump_rotation.connect()
+    scope_rigol4.connect()
+    laser = Laser(params=exp_params,
+                rigoldsg830 =None,
+                rigoldsg815=None,
+                pump_rotation=pump_rotation,
+                arduino=None,
+                scope=scope_rigol4,)
+    
+    laser.load_configuration()
+    laser.calibrate_pump_power()
+    # laser.update_photon_detuning_from_device_frequency()

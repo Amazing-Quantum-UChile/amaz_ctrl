@@ -11,7 +11,9 @@ class ScopeRigol2202A(AmazingInstrument):
     numb_of_div = 14 # horizontal number of division
 
     def connect(self):
+        
         self.visa_adress =  self.get_param("Scope Rigol2 VISA")
+        print(self.visa_adress)
         self.instr = rm.open_resource(self.visa_adress)
 
     def disconnect(self):

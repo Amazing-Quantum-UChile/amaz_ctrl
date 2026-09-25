@@ -53,7 +53,6 @@ class Script(AmazingScript):
                                                 port = self.exp_params["laser lock pump power USB address"])
         self.arduino = Arduino(params= self.exp_params)
         self.laser = Laser(params=self.exp_params, 
-                           parent=self, 
                            rigoldsg830 = self.rigoldsg830,
                            rigoldsg815 = self.rigoldsg815,
                            pump_rotation = self.pump_rotation,
@@ -99,11 +98,18 @@ class Script(AmazingScript):
             instr.params = self.exp_params
             instr.set_parameters()
 
+        ## I want to set the tiny SA frequency using the 2nd aom frequency
+        self.sa_tiny.set_center(int(self.exp_params["laser 2nd AOM frequency (MHz)"]*1e6))
 
+    def print(self, to_print, debug = False):
+        if debug:
+            print(to_print)
     def measure_linewidth(self, result:dict)->dict:
         """measure the linewidth of the laser using the Tiny SA Spectrum analyzer"""
+        debug = False
         if not self.sa_tiny._is_connected:
             return result
+        self.print("Getting the trace from tiny", debug=debug)
         freq, amplidBm = self.sa_tiny.get_trace()
         freq = freq / 1e6 #we use freq in MHz
         ## Go into W instead of dB
@@ -111,9 +117,10 @@ class Script(AmazingScript):
         df = pd.DataFrame({"Freq":freq, "Ampli":ampli, "Ampli (dB)":amplidBm})
         if self.exp_params["SA Tiny save raw data"]:
             df.to_csv(self.run_prefix+"linewidth_raw.csv")
+        self.print("Starting to fit", debug=debug)
         
         ## mask because we have a big peak we do not want to fit
-        central_freq = 80
+        central_freq = self.exp_params["laser 2nd AOM frequency (MHz)"]
         mask_DX = 10 * 0.001 * 2
 
         mask = np.abs(freq-central_freq) > mask_DX
@@ -143,19 +150,21 @@ class Script(AmazingScript):
         result["U(Gamma) (kHz)"] = perr[2] *1000
         error = np.sum((lorentzian(freq, *popt)-ampli)**2)
         result["Fit error"] = error
-        # if self.j_run %30 ==0:
-        #     fig,ax = plt.subplots()
-        #     ax.plot(freq, ampli, "o", color ="C0", label = "Data")
-        #     ax.plot(freq, lorentzian(freq, *popt), color = "C0", label = "Fit")
-        #     ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--", label = "Guess")
-        #     ax.axvspan(central_freq-mask_DX, central_freq+mask_DX, color = "red", alpha = .2)
-        #     ax.set_xlabel("Frequency (MHz)")
-        #     ax.set_ylabel("Amplitude (a.u.)")
-        #     ax.set_ylim(top = max(np.max(ampli[mask])*1.4, popt[1])*1.15, bottom = 0)
-        #     ax.legend()
-        #     plt.tight_layout()
-        #     fig.savefig(self.run_prefix+"beating_fig.png")
-        #     plt.close(fig)
+        if self.j_run  ==0:
+            self.print("Starting to plot", debug=debug)
+
+            fig,ax = plt.subplots()
+            ax.plot(freq, ampli, "o", color ="C0", label = "Data")
+            ax.plot(freq, lorentzian(freq, *popt), color = "C0", label = "Fit")
+            ax.plot(freq, lorentzian(freq, *p0), color = "grey", ls = "--", label = "Guess")
+            ax.axvspan(central_freq-mask_DX, central_freq+mask_DX, color = "red", alpha = .2)
+            ax.set_xlabel("Frequency (MHz)")
+            ax.set_ylabel("Amplitude (a.u.)")
+            ax.set_ylim(top = max(np.max(ampli[mask])*1.4, popt[1])*1.15, bottom = 0)
+            ax.legend()
+            plt.tight_layout()
+            fig.savefig(self.run_prefix+"beating_fig.png")
+            plt.close(fig)
         return result
     
 
@@ -167,6 +176,12 @@ class Script(AmazingScript):
     #     self.sa_agilent.instr.write(":INITiate")
 
     
+    def start_intensity_spectrum_measurement(self):
+        ### We open the shutter so that the beam can pass
+        self.arduino.send("SHUTTER7 OPEN")
+        time.sleep(.4)
+        ## Trigg the measurement of the agilent
+        self.sa_agilent.trigg()
 
     def get_intensity_spectrum(self, result):
         if not self.exp_params["SA Agil connected"]:
@@ -232,31 +247,39 @@ class Script(AmazingScript):
         return result
 
     def acquire(self)->dict:
+        debug = False
         result={}
         ## First check the pump power
+
+        self.print("Checking pump and seed power.", debug=debug)
         self.laser.check_pump_power()
+        self.laser.check_seed_power()
         result["Pump Power (mW)"] = self.laser.get_pump_power()
-        ## trigg the measurement of the agilent
-        self.sa_agilent.trigg()
-        # self.log.info("Reading squeezing...")
+        result["Seed power (uW)"] = self.laser.get_seed_power()
+        result["Target seed power (uW)"] =  self.exp_params["laser target seed power (uW)"]
+        ## Measure the intensity spectrum 
+        self.start_intensity_spectrum_measurement()
+        
+        self.print("Reading squeezing....", debug=debug)
         result = self.get_squeezing(result)
         
         # self.log.info("Squeezing: {:.2f} dB".format(result["Squeezing (dB)"]))
-        result = self.measure_linewidth(result)
+        self.print("Starting to measure the linewidth.", debug=debug)
+        try:
+            result = self.measure_linewidth(result)
+        except Exception as e:
+            self.log.warning(f"SQUEEZING:Failed to measure the laser linewidth. Try a second time. Error is {e}")
+            try:
+                result = self.measure_linewidth(result)
+            except Exception as e:
+                self.log.error(f"SQUEEZING:Failed two times to measure the laser linewidth. Aborting the mesaurement. Error is {e}")
+
+        self.print("Starting to measure the intensity.", debug=debug)
         result = self.get_intensity_spectrum(result)
   
         
 
-        result = self.scope_rigol4.measure(result)
-        # result["Thorlabs power meter (mW)"] = 1000 * self.power_meter.get_power()
-        try:
-            ## calibration done on week 22.
-            result["Seed power (uW)"] = 0.03956*result["Seed power mean (mV)"] - 0.833
-            ## calibration done on week 22.
-            # result["Pump power (mW)"] = 19.73*result["Thorlabs power meter (mW)"]-6.74
-        except:
-            self.log.warning("Failed to convert the seed power.", exc_info=True)
-
+        result = self.scope_rigol4.measure(result)        
         result["delta (MHz)"] = self.exp_params["laser 2ph detuning (MHz)"]
         result["Coil currente (mA)"] = self.exp_params["Additional Parameter 1 value"]
         return result

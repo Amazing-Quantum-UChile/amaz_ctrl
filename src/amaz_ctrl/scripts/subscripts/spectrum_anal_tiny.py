@@ -1,11 +1,10 @@
-
 from amaz_ctrl.scripts.base.amaz_instrument import AmazingInstrument
 import serial
 import numpy as np
 import pylab as pl
 import struct
 from serial.tools import list_ports
-
+import time
 VID = 0x0483 #1155
 PID = 0x5740 #22336
 REF_LEVEL = (1<<9)
@@ -18,10 +17,13 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 			"SA Tiny freq span (MHz)": 5,
 			"SA Tiny RBW (kHz)": 10,
 			"SA Tiny Average trace No": 5,
+			"SA Tiny timeout (s)": 1
 		}
 	serial = None
 	_frequencies = None
 	points = 101
+	_is_connected = False
+	timeout = 1
 
 	def __init__(self, *arg,**kwargs):
         # Call the parent class __init__ method
@@ -34,6 +36,7 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 			for device in device_list:
 				if device.vid == VID and device.pid == PID:
 					self.dev =  device.device
+					self.open()
 					return
 			self.log.error("The Tiny SA was not found in serial ports. Please turn it ON. ")
 			self.dev  = None
@@ -45,13 +48,19 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 
 	def disconnect(self):
 		self.close()
-	def set_parameters(self): 
+
+
+	def set_parameters(self, from_laser = False): 
+		self.timeout = self.params["SA Tiny timeout (s)"]
 		if not self._is_connected:
 			return
+		
+		
 		self.set_span(int(self.params["SA Tiny freq span (MHz)"]*1e6))
 		self.set_center(int(self.params["SA Tiny freq center (MHz)"]*1e6))
 		self.rbw(data = self.params["SA Tiny RBW (kHz)"])
 		self.repeat(number = int(self.params["SA Tiny Average trace No"]))
+
 		
 		
 	def get_trace(self):
@@ -62,9 +71,22 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 				self.params["SA Tiny freq center (MHz)"]-self.params["SA Tiny freq span (MHz)"]/2,
 				self.params["SA Tiny freq center (MHz)"]+self.params["SA Tiny freq span (MHz)"]/2,
 				101), np.zeros(101) - 100
+		try:
+			data = self.data()
+			self.fetch_frequencies()
+			return self.frequencies, data
+		except TimeoutError:
+			self.log.warning("A timeout error occured with the Tiny Spectrum Analyzer. We are trying to disconnect and connect and retry.")
+		## If if fails, we unconnect, reconnect and retry
+		self.disconnect()
+		time.sleep(0.3)
+		self.connect()
+		time.sleep(.3)
 		data = self.data()
 		self.fetch_frequencies()
 		return self.frequencies, data
+
+		
 
 
 	
@@ -82,20 +104,31 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 		self._frequencies = np.linspace(start, stop, self.points)
 
 	def open(self):
+		if not self._is_connected:
+			return
 		if self.serial is None:
-			self.serial = serial.Serial(self.dev)
+			self.serial = serial.Serial(self.dev, 
+							   timeout=self.params["SA Tiny timeout (s)"])
+		if not self.serial.isOpen():
+			self.serial.open()
 
 	def close(self):
+		if not self._is_connected:
+			return
 		if self.serial:
 			self.serial.close()
 		self.serial = None
 
 	def send_command(self, cmd):
+		if not self._is_connected:
+			return
 		self.open()
 		self.serial.write(cmd.encode())
 		self.serial.readline() # discard empty line
 
 	def cmd(self, text):
+		if not self._is_connected:
+			return
 		self.open()
 		self.serial.write((text + "\r").encode())
 		self.serial.readline() # discard empty line
@@ -185,8 +218,11 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 			self.send_command("rbw %d\r" % data)
 		
 	def fetch_data(self):
+		if not self._is_connected:
+			return ""
 		result = ''
 		line = ''
+		timestart = time.time()
 		while True:
 			c = self.serial.read().decode('utf-8')
 			if c == chr(13):
@@ -199,24 +235,11 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 			if line.endswith('ch>'):
 				# stop on prompt
 				break
+			if time.time() - timestart >self.timeout:
+				raise TimeoutError("Fetching data from the SPectrum Analyzer was taking longer than expected.")
 		return result
 
-#	def fetch_array(self, sel):
-#		self.send_command("data %d\r" % sel)
-#		data = self.fetch_data()
-#		x = []
-#		for line in data.split('\n'):
-#			if line:
-#				x.extend([float(d) for d in line.strip().split(' ')])
-#		return np.array(x[0::2]) + np.array(x[1::2]) * 1j
 
-#	def fetch_gamma(self, freq = None):
-#		if freq:
-#			self.set_frequency(freq)
-#		self.send_command("gamma\r")
-#		data = self.serial.readline()
-#		d = data.strip().split(' ')
-#		return (int(d[0])+int(d[1])*1.j)/REF_LEVEL
 
 	def resume(self):
 		self.send_command("resume\r")
@@ -306,21 +329,27 @@ class SpectrumAnalyzerTiny(AmazingInstrument):
 			print("%d, "%self.frequencies[i], "%2.2f"%x[i], file=f)
 
 
-
 if __name__=="__main__":
-	sa_tiny = SpectrumAnalyzerTiny(params = {})
+	sa_tiny = SpectrumAnalyzerTiny(params ={
+			"SA Tiny connected": True,
+			"SA Tiny freq center (MHz)": 80,
+			"SA Tiny freq span (MHz)": 10,
+			"SA Tiny RBW (kHz)": 10,
+			"SA Tiny Average trace No": 5,
+			"SA Tiny timeout (s)": 1
+		})
 	# sa_tiny.set_span(5000000)
 	# sa_tiny.set_center(80000000)
 	sa_tiny.set_parameters()
+	sa_tiny.connect()
 	## Get the trace
 	freq, data = sa_tiny.get_trace()
+	
 	power = 10**(data/10)/1000
 	import matplotlib.pyplot as plt
 	fig, ax = plt.subplots()
-	ax2 = ax.twinx()
 	ax.plot(freq/1e6, data, color = "black")
 	ax.set_xlabel("Frequencies (MHz)")
 	ax.set_ylabel("Power (dBm)")
-	ax2.plot(freq/1e6, power, color = "grey")
 	plt.show()
-
+	

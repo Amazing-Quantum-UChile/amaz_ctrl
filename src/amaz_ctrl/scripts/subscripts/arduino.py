@@ -22,6 +22,8 @@ class FakeArduinoBoard():
         return answer
     def close(self):
         pass
+    def isOpen():
+        return False
     
 class Arduino(AmazingInstrument):
     def_params = {"arduino address":"COM3",
@@ -35,15 +37,14 @@ class Arduino(AmazingInstrument):
         self.board = serial.Serial(port=self.params["arduino address"],
                                      baudrate=self.params["arduino baudrate"], 
                                      timeout=self.params["arduino timeout (s)"])
-        time.sleep(2.) 
+        time.sleep(1.) 
         self.reset_buffer()
         idn = self.query("*IDN?")
         if idn:
             self.log.info(f"Connection to '{idn}' succeeded.")
-            self._is_connected = True
         else:
             self.log.error("Connection to the arduino failed.")
-            self._is_connected = False
+            
 
         debug_mode = self.query("DEBUG?")
         if debug_mode:
@@ -59,6 +60,9 @@ class Arduino(AmazingInstrument):
         Args:
             cmd (str): the command to sent to the arduino
         """
+        if not self.board.isOpen():
+            self.log.warning("The arduino board was not connected. This is weired.")
+            self.connect()
         end_line = "\n"
         ## check that the command as "\n" at the end
         if len(cmd) < 2:
@@ -86,7 +90,16 @@ class Arduino(AmazingInstrument):
     
     def disconnect(self):
         self.log.info("Disconnecting from the Arduino.")
+        time.sleep(1.)
         self.board.close()
+        time.sleep(1.)
+        if self.board.isOpen():
+            self.log.warning("The arduino board was not disconnected... Retrying.")
+            self.board.close()
+            time.sleep(1.)
+            if self.board.isOpen():
+                self.log.error("Failed to close the arduino board. You might need to have a look to what happened.")
+
 
     def measure_ads_voltage(self, channel:int = 0):
         """Measure the voltage on the ADS 1115 connected to the arduino."""
